@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Publications and preprints by Aref Pariz, Ph.D., explained in plain language with selected open-access figures.">
+  <meta name="theme-color" content="#070916">
+  <title>Publications — Aref Pariz</title>
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("neurofolio-theme") || "dark"; } catch (_) { document.documentElement.dataset.theme = "dark"; }</script>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <script defer src="./assets/js/content.js"></script>
+  <script defer src="./assets/js/cortex.js"></script>
+  <script defer src="./assets/js/site.js"></script>
+</head>
+<body data-page="publications">
+  <header id="site-header"></header>
+  <main id="main-content">
+    <section class="page-hero compact publication-hero">
+      <div class="page-shell">
+        <p class="eyebrow">Publication atlas</p>
+        <h1 class="page-title">The papers with a simple explanation.</h1>
+        <!-- <p class="page-intro">Start with the complete list of peer-reviewed papers and public preprints below. Selecting a title scrolls to a simple explanation of the question, method, and result. Selected open-access figures are reproduced with attribution.</p> -->
+      </div>
+    </section>
+
+    <section class="section-tight publication-map-wrap" aria-labelledby="publication-map-title">
+      <div class="page-shell">
+        <div class="map-heading reveal">
+          <div>
+            <p class="section-kicker">Publications &amp; preprints</p>
+            <h2 id="publication-map-title">Select a record to move to its section.</h2>
+          </div>
+          <span class="map-count" id="publication-count">Loading records</span>
+        </div>
+        <nav class="paper-jump-map publication-page-map reveal" id="publication-map" aria-label="Publication list"></nav>
+      </div>
+    </section>
+
+    <section class="section-tight publication-story-section">
+      <div class="page-shell">
+        <div class="filter-bar" id="publication-filter-bar">
+          <label class="search-field">
+            <span class="visually-hidden">Search publications</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <input id="publication-search" type="search" placeholder="Search title, method, venue, or year">
+          </label>
+          <div class="filter-pills" id="publication-filters" aria-label="Publication type filters"></div>
+        </div>
+
+        <!-- <div class="source-status reveal">
+          <span class="status-dot" aria-hidden="true"></span>
+          <div><strong>Editable research summaries.</strong> The citation records come from the supplied CV. The short explanations are written from the paper abstracts or accessible full text; figure credits and reuse terms appear directly under each reproduced figure.</div>
+        </div> -->
+
+        <div class="publication-stories" id="publication-list"></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="work-progress-title">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Developing work</p>
+          <div>
+            <h2 class="section-title" id="work-progress-title">Manuscripts in development.</h2>
+            <p class="section-copy">Entries with no public abstract are intentionally described only at the level supported by the supplied CV.</p>
+          </div>
+        </header>
+        <div class="work-grid" id="works-in-progress"></div>
+      </div>
+    </section>
+  </main>
+  <footer id="site-footer"></footer>
+</body>
+</html>

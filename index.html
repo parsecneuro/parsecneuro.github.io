@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PARSEC Neuro research portfolio of Aref Pariz, Ph.D.—theoretical, computational, and clinical neuroscience; neural dynamics; and precision brain stimulation.">
+  <meta name="theme-color" content="#070916">
+  <title>PARSEC Neuro — Aref Pariz, Ph.D.</title>
+  <script>
+    try { document.documentElement.dataset.theme = localStorage.getItem("neurofolio-theme") || "dark"; } catch (_) { document.documentElement.dataset.theme = "dark"; }
+  </script>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <script defer src="./assets/js/content.js"></script>
+  <script defer src="./assets/js/cortex.js"></script>
+  <script defer src="./assets/js/site.js"></script>
+</head>
+<body data-page="home">
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero">
+      <div class="page-shell hero-profile-grid">
+        <div class="hero-copy">
+          <div class="parsec-identity reveal">
+            <details class="parsec-name">
+              <summary>
+                <span class="parsec-wordmark">PARSEC <span>NEURO</span></span>
+                <span class="parsec-open-label">Open the name</span>
+              </summary>
+              <div class="parsec-expansion" aria-label="Pariz Approaches to Research through Simulation, Experiment, and Clinical neuroscience">
+                <span><strong>P</strong>ariz</span>
+                <span><strong>A</strong>pproaches to</span>
+                <span><strong>R</strong>esearch through</span>
+                <span><strong>S</strong>imulation</span>
+                <span><strong>E</strong>xperiment &amp;</span>
+                <span><strong>C</strong>linical neuroscience</span>
+              </div>
+            </details>
+            <p class="parsec-bridge">Theoretical · Computational · Clinical neuroscience</p>
+          </div>
+          <p class="eyebrow" id="profile-eyebrow">Systems &amp; Computational Neuroscience · Neuromodulation · Concurrent fMRI–tES</p>
+          <h1 class="display-title"><span id="profile-name">Aref Pariz, Ph.D.</span></h1>
+          <p class="hero-intro" id="profile-headline">I investigate how neuromodulation technologies modulate brain function and communication dynamics.</p>
+          <p class="role-line" id="profile-role">Assistant Instructor · Department of Psychiatry · UT Southwestern Medical Center</p>
+          <div class="hero-actions" id="profile-actions">
+            <a class="button primary" href="./publications.html">Explore the paper map
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="button" href="./assets/files/Aref_Pariz_CV.pdf" target="_blank" rel="noopener">Open CV</a>
+            <button class="button ghost" id="contact-button" type="button" data-contact-button>Contact</button>
+          </div>
+          <div class="profile-link-row" id="profile-link-row"></div>
+          <div class="scroll-cue">Scroll through cortical depth</div>
+        </div>
+
+        <figure class="profile-portrait reveal" aria-label="Portrait of Aref Pariz">
+          <span class="profile-portrait-placeholder" aria-hidden="true">AP</span>
+          <img
+            src="./assets/images/aref.JPG"
+            alt="Portrait of Aref Pariz"
+            width="900"
+            height="1100"
+            loading="eager"
+            decoding="async"
+            onerror="this.hidden=true"
+          >
+          <figcaption class="visually-hidden">Aref Pariz</figcaption>
+        </figure>
+
+        <aside class="hero-aside">
+          <div class="signal-card reveal">
+            <p class="signal-label" id="current-focus-label">Current research signal</p>
+            <h2 id="current-focus-title">Precision stimulation for clinically relevant brain networks</h2>
+            <p id="profile-introduction">My work connects neural-network models, TMS-EEG, electric-field simulations, and clinical questions to make non-invasive brain stimulation more precise and interpretable.</p>
+            <p class="signal-location"><strong id="profile-location">Dallas, Texas, USA</strong></p>
+            <div class="tag-list" id="current-focus-tags"></div>
+            <div class="signal-trace" aria-hidden="true">
+              <svg viewBox="0 0 520 150" preserveAspectRatio="none">
+                <path d="M0 95 C40 95 54 93 86 95 L112 95 L122 82 L132 108 L143 28 L154 130 L166 76 L177 95 C213 98 236 94 268 95 L298 95 L309 86 L320 104 L332 44 L344 118 L356 82 L369 95 C410 96 456 95 520 95"/>
+              </svg>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Research compass</p>
+          <div>
+            <h2 class="section-title">From neural timing to individualized intervention.</h2>
+            <p class="section-copy">The portfolio follows four connected questions: how information moves, how stimulation perturbs it, how heterogeneity changes the answer, and how those mechanisms can support clinical decisions.</p>
+          </div>
+        </header>
+        <div class="theme-grid" id="theme-grid"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Research program</p>
+          <div>
+            <h2 class="section-title">A perturb–measure–personalize loop.</h2>
+            <p class="section-copy">Mechanistic simulations and human measurements are treated as two views of the same problem, with individual variability retained rather than averaged away.</p>
+          </div>
+        </header>
+        <div class="principles" id="research-program"></div>
+      </div>
+    </section>
+<!--
+    <section class="section" aria-labelledby="clinical-protocols-title">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Clinical studies</p>
+          <div>
+            <h2 class="section-title" id="clinical-protocols-title">Protocols moving toward IRB review and public registration.</h2>
+            <p class="section-copy">As studies are approved and registered, this section will provide a short protocol summary and a direct ClinicalTrials.gov link for each project.</p>
+          </div>
+        </header>
+        <div class="protocol-grid" id="clinical-protocols"></div>
+      </div>
+    </section>
+-->
+    <section class="section">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Trajectory</p>
+          <div>
+            <h2 class="section-title">Physics → neural dynamics → precision neurostimulation.</h2>
+            <p class="section-copy">A compact chronology of the training and appointments that shaped the current research program.</p>
+          </div>
+        </header>
+        <div class="research-timeline" id="research-timeline"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Featured papers</p>
+          <div>
+            <h2 class="section-title">Three examples of the central research arc.</h2>
+            <p class="section-copy">These entries lead to the corresponding location in the full, single-page publication narrative.</p>
+          </div>
+        </header>
+        <div class="publication-list" id="selected-publications"></div>
+        <div class="hero-actions reveal">
+          <a class="button" href="./publications.html">View every publication</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="page-shell">
+        <div class="content-panel current-question reveal">
+          <p class="section-kicker">Question in progress</p>
+          <h2>Can dose be personalized so that every participant’s target receives at least a minimum electric-field magnitude?</h2>
+          <p>I am exploring whether accounting for individual brain anatomy can reduce under-dosing and increase the likelihood of clinical response and remission across a cohort.</p>
+          <div class="tag-list">
+            <span class="tag">Brain anatomy</span>
+            <span class="tag">Electric-field threshold</span>
+            <span class="tag">Individualized dose</span>
+            <span class="tag">Response &amp; remission</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+</body>
+</html>

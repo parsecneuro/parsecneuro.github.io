@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Working ideas, methods notes, and public posts by Aref Pariz, Ph.D.">
+  <meta name="theme-color" content="#070916">
+  <title>Ideas & Posts — Aref Pariz</title>
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("neurofolio-theme") || "dark"; } catch (_) { document.documentElement.dataset.theme = "dark"; }</script>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <script defer src="./assets/js/content.js"></script>
+  <script defer src="./assets/js/cortex.js"></script>
+  <script defer src="./assets/js/site.js"></script>
+</head>
+<body data-page="ideas">
+  <header id="site-header"></header>
+  <main id="main-content">
+    <section class="page-hero compact">
+      <div class="page-shell">
+        <p class="eyebrow">Ideas in motion</p>
+        <h1 class="page-title">Ideas, interpretations, and questions in progress.</h1>
+        <p class="page-intro">A flexible space for my scientific opinions, developing arguments, open questions, and selected social-media posts. Some entries may later grow into studies, commentaries, or longer essays.</p>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="page-shell">
+        <div class="filter-bar">
+          <label class="search-field">
+            <span class="visually-hidden">Search posts</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <input id="post-search" type="search" placeholder="Search ideas, tags, or phrases">
+          </label>
+        </div>
+        <div class="post-grid" id="post-grid"></div>
+      </div>
+    </section>
+  </main>
+  <footer id="site-footer"></footer>
+</body>
+</html>

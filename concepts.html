@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A personal atlas of scientific concepts in computational neuroscience and brain stimulation by Aref Pariz, Ph.D.">
+  <meta name="theme-color" content="#070916">
+  <title>Concept Atlas — Aref Pariz</title>
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("neurofolio-theme") || "dark"; } catch (_) { document.documentElement.dataset.theme = "dark"; }</script>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <style>
+    /* Keep the Concept Atlas search prominent as the category list grows. */
+    .concept-filter-bar {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+
+    .concept-filter-bar .search-field {
+      display: block;
+      width: 100%;
+      flex: none;
+    }
+
+    .concept-filter-bar .search-field input {
+      min-height: 52px;
+      border-color: var(--line);
+      background: var(--surface);
+      font-size: 15px;
+    }
+
+    .concept-filter-bar .search-field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+    }
+
+    .concept-filter-bar .filter-pills {
+      width: 100%;
+    }
+  </style>
+  <script defer src="./assets/js/content.js"></script>
+  <script defer src="./assets/js/cortex.js"></script>
+  <script defer src="./assets/js/site.js"></script>
+</head>
+<body data-page="concepts">
+  <header id="site-header"></header>
+  <main id="main-content">
+    <section class="page-hero compact">
+      <div class="page-shell">
+        <p class="eyebrow">Concept atlas</p>
+        <h1 class="page-title">A connected notebook for the terms behind the models.</h1>
+        <p class="page-intro">Each card contains a one-sentence definition, why it matters, a concrete example, and neighboring ideas. Select a card to open its full note.</p>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="page-shell">
+        <div class="filter-bar concept-filter-bar">
+          <label class="search-field">
+            <span class="visually-hidden">Search concepts</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <input id="concept-search" type="search" placeholder="Search terms, definitions, or connections">
+          </label>
+          <div class="filter-pills" id="concept-filters" aria-label="Concept category filters"></div>
+        </div>
+        <div class="concept-grid" id="concept-grid"></div>
+      </div>
+    </section>
+  </main>
+  <div class="concept-detail" id="concept-detail" aria-hidden="true"></div>
+  <footer id="site-footer"></footer>
+</body>
+</html>
