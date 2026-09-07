@@ -1,0 +1,7 @@
+label,x,y,z,point_type,coordinate_frame,region,function,region_url
+NAS,0,100,0,fiducial,Example cap/device coordinates,,,
+LPA,-80,0,0,fiducial,Example cap/device coordinates,,,
+RPA,80,0,0,fiducial,Example cap/device coordinates,,,
+F3,-42,50,70,electrode,Example cap/device coordinates,left frontal scalp,"Approximate executive-control territory.",
+C3,-58,0,82,electrode,Example cap/device coordinates,left central scalp,"Approximate sensorimotor territory.",
+Oz,0,-92,40,electrode,Example cap/device coordinates,midline occipital scalp,"Approximate visual territory.",

@@ -1,0 +1,41 @@
+THIRD-PARTY NOTICES
+===================
+
+This release includes or uses data derived from open-source scientific and
+visualization resources. The notices below do not replace the corresponding
+license texts in the licenses directory.
+
+Plotly.js 6.5.2
+---------------
+File: js/vendor/plotly-6.5.2.min.js
+License: MIT License
+Copyright (c) 2016-2024 Plotly Technologies Inc.
+License copy: licenses/PLOTLY-LICENSE.txt
+Project: https://github.com/plotly/plotly.js
+
+MNE-Python
+----------
+The built-in montage coordinates and template scalp asset were prepared using
+MNE-Python 1.11.0. International 10-20, 10-10, and 10-5 presets use selected
+positions from MNE standard montage definitions. Additional presets include
+alternative standard layouts and manufacturer-oriented template montages.
+
+The browser head mesh contains arrays converted from the MNE-bundled
+fsaverage-head.fif scalp/head surface. It is a public template surface and is
+not an anatomical scan of a viewer or study participant.
+
+License: BSD 3-Clause License
+License copy: licenses/MNE-PYTHON-LICENSE.txt
+Template notice: licenses/TEMPLATE-ASSET-NOTICE.txt
+Project: https://github.com/mne-tools/mne-python
+Montage documentation:
+https://mne.tools/stable/generated/mne.channels.make_standard_montage.html
+Fsaverage documentation:
+https://mne.tools/stable/generated/mne.datasets.fetch_fsaverage.html
+
+Template interpretation
+-----------------------
+The template scalp and template-MNI/fsaverage projections are intended for
+visualization and broad quality review. They do not replace individual EEG
+digitization, participant MRI coregistration, source localization,
+neuronavigation, diagnosis, or clinical interpretation.

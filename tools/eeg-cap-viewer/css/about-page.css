@@ -1,0 +1,36 @@
+/* Personal-site integration overrides for the EEG Cap Viewer About page. */
+.eeg-about-page .eeg-about-hero-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+  max-width: 1080px;
+}
+
+.eeg-about-page .eeg-detail-hero .page-intro {
+  max-width: 900px;
+}
+
+.eeg-about-page .viewer-embed-shell {
+  width: 100%;
+  min-height: 1040px;
+  overflow: hidden;
+}
+
+.eeg-about-page .eeg-viewer-frame {
+  display: block;
+  width: 100%;
+  min-height: 1040px;
+  border: 0;
+}
+
+@media (max-width: 1100px) {
+  .eeg-about-page .viewer-embed-shell,
+  .eeg-about-page .eeg-viewer-frame {
+    min-height: 1500px;
+  }
+}
+
+@media (max-width: 680px) {
+  .eeg-about-page .viewer-embed-shell,
+  .eeg-about-page .eeg-viewer-frame {
+    min-height: 1760px;
+  }
+}

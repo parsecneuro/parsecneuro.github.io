@@ -1,0 +1,22 @@
+label,x,y,z,coordinate_frame
+Fp1,-29.4367,83.9171,-6.99,MNI / fsaverage MRI coordinates
+Fpz,0.1123,88.247,-1.713,MNI / fsaverage MRI coordinates
+Fp2,29.8723,84.8959,-7.08,MNI / fsaverage MRI coordinates
+F7,-70.2629,42.4743,-11.42,MNI / fsaverage MRI coordinates
+F3,-50.2438,53.1112,42.192,MNI / fsaverage MRI coordinates
+Fz,0.3122,58.512,66.462,MNI / fsaverage MRI coordinates
+F4,51.8362,54.3048,40.814,MNI / fsaverage MRI coordinates
+F8,73.0431,44.4217,-12.0,MNI / fsaverage MRI coordinates
+T7,-84.1611,-16.0187,-9.346,MNI / fsaverage MRI coordinates
+C3,-65.3581,-11.6317,64.358,MNI / fsaverage MRI coordinates
+Cz,0.4009,-9.167,100.244,MNI / fsaverage MRI coordinates
+C4,67.1179,-10.9003,63.58,MNI / fsaverage MRI coordinates
+T8,85.0799,-15.0203,-9.49,MNI / fsaverage MRI coordinates
+P7,-72.4343,-73.4527,-2.487,MNI / fsaverage MRI coordinates
+P3,-53.0073,-78.7878,55.94,MNI / fsaverage MRI coordinates
+Pz,0.3247,-81.115,82.615,MNI / fsaverage MRI coordinates
+P4,55.6667,-78.5602,56.561,MNI / fsaverage MRI coordinates
+P8,73.0557,-73.0683,-2.54,MNI / fsaverage MRI coordinates
+O1,-29.4134,-112.449,8.839,MNI / fsaverage MRI coordinates
+Oz,0.1076,-114.892,14.657,MNI / fsaverage MRI coordinates
+O2,29.8426,-112.156,8.8,MNI / fsaverage MRI coordinates

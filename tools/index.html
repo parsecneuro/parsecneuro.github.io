@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Research software and interactive neuroscience tools developed by Aref Pariz, including NESTApp and the EEG Cap Viewer.">
+  <meta name="theme-color" content="#070916">
+  <title>Tools &amp; Developments — Aref Pariz</title>
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("neurofolio-theme") || "dark"; } catch (_) { document.documentElement.dataset.theme = "dark"; }</script>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+  <link rel="stylesheet" href="../assets/css/eeg-tool-card.css">
+  <script defer src="../assets/js/content.js"></script>
+  <script defer src="../assets/js/cortex.js"></script>
+  <script defer src="../assets/js/site.js"></script>
+</head>
+<body data-page="tools" data-site-root="..">
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="page-hero compact tools-page-hero">
+      <div class="page-shell">
+        <p class="eyebrow">Tools &amp; developments</p>
+        <h1 class="page-title">Research software made for practical use.</h1>
+        <p class="page-intro">Applications that turn specialized EEG and TMS–EEG workflows into clearer, more inspectable interactions.</p>
+      </div>
+    </section>
+
+    <section class="section-tight" aria-labelledby="tool-catalog-title">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Current tools</p>
+          <div>
+            <h2 class="section-title" id="tool-catalog-title">Two ways to inspect complex data more directly.</h2>
+            <p class="section-copy">Select a tool for its purpose, expected workflow, requirements, and access options.</p>
+          </div>
+        </header>
+
+        <div class="tool-catalog">
+          <a class="tool-card tool-card-nest reveal" href="./nestapp/index.html" aria-labelledby="nestapp-card-title">
+            <div class="tool-card-visual pipeline-mini" aria-hidden="true">
+              <span class="pipeline-mini-node">Load</span>
+              <span class="pipeline-mini-line"></span>
+              <span class="pipeline-mini-node">Clean</span>
+              <span class="pipeline-mini-line"></span>
+              <span class="pipeline-mini-node">Review</span>
+              <span class="pipeline-mini-pulse"></span>
+            </div>
+            <div class="tool-card-body">
+              <div class="tool-card-meta"><span>MATLAB application</span><span>Open source</span></div>
+              <h2 id="nestapp-card-title">NESTApp</h2>
+              <p>A graphical application for building, running, and documenting reusable EEG and TMS–EEG preprocessing workflows with EEGLAB-compatible tools.</p>
+              <div class="tag-list" aria-label="NESTApp topics">
+                <span class="tag">TMS–EEG</span>
+                <span class="tag">EEGLAB</span>
+                <span class="tag">Pipeline builder</span>
+              </div>
+              <span class="tool-card-link">Explore NESTApp
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            </div>
+          </a>
+
+          <a class="tool-card tool-card-eeg reveal" href="./eeg-cap-viewer/about.html" aria-labelledby="eeg-card-title">
+            <div class="tool-card-visual eeg-cap-mini" aria-hidden="true">
+              <div class="eeg-cap-mini-window">
+                <div class="eeg-cap-mini-bar">
+                  <span class="eeg-cap-mini-mode"><i></i>10–10 reference</span>
+                  <span class="eeg-cap-mini-views"><i></i><i></i><i></i></span>
+                </div>
+
+                <svg class="eeg-cap-mini-scene" viewBox="0 0 420 205" role="presentation" focusable="false">
+                  <defs>
+                    <radialGradient id="eeg-mini-scalp" cx="38%" cy="28%" r="78%">
+                      <stop offset="0%" class="eeg-mini-scalp-light"></stop>
+                      <stop offset="64%" class="eeg-mini-scalp-mid"></stop>
+                      <stop offset="100%" class="eeg-mini-scalp-dark"></stop>
+                    </radialGradient>
+                    <linearGradient id="eeg-mini-scan" x1="0" x2="1">
+                      <stop offset="0%" stop-color="transparent"></stop>
+                      <stop offset="50%" class="eeg-mini-scan-stop"></stop>
+                      <stop offset="100%" stop-color="transparent"></stop>
+                    </linearGradient>
+                  </defs>
+
+                  <ellipse class="eeg-mini-floor" cx="210" cy="185" rx="116" ry="12"></ellipse>
+                  <g class="eeg-mini-head-group">
+                    <ellipse class="eeg-mini-ear" cx="126" cy="111" rx="11" ry="24"></ellipse>
+                    <ellipse class="eeg-mini-ear" cx="294" cy="111" rx="11" ry="24"></ellipse>
+                    <path class="eeg-mini-scalp" d="M210 18C159 18 132 54 135 108c2 43 22 73 54 86 11 5 31 5 42 0 32-13 52-43 54-86 3-54-24-90-75-90Z"></path>
+                    <path class="eeg-mini-nose" d="M198 193 210 207 222 193"></path>
+
+                    <path class="eeg-mini-grid-line" d="M149 68c35 17 87 17 122 0"></path>
+                    <path class="eeg-mini-grid-line" d="M138 108c42 21 102 21 144 0"></path>
+                    <path class="eeg-mini-grid-line" d="M148 150c36 16 88 16 124 0"></path>
+                    <path class="eeg-mini-grid-line" d="M174 30c-13 44-15 105 1 157"></path>
+                    <path class="eeg-mini-grid-line" d="M210 20v174"></path>
+                    <path class="eeg-mini-grid-line" d="M246 30c13 44 15 105-1 157"></path>
+                    <path class="eeg-mini-scan" d="M143 118h134"></path>
+
+                    <g class="eeg-mini-points">
+                      <circle class="eeg-mini-point" cx="185" cy="41" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="235" cy="41" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="155" cy="73" r="5"></circle>
+                      <circle class="eeg-mini-point is-selected" cx="185" cy="72" r="6"></circle>
+                      <circle class="eeg-mini-point" cx="210" cy="67" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="235" cy="72" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="265" cy="73" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="145" cy="111" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="180" cy="109" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="210" cy="104" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="240" cy="109" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="275" cy="111" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="157" cy="148" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="185" cy="145" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="210" cy="142" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="235" cy="145" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="263" cy="148" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="188" cy="177" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="210" cy="174" r="5"></circle>
+                      <circle class="eeg-mini-point" cx="232" cy="177" r="5"></circle>
+
+                      <circle class="eeg-mini-compare" cx="191" cy="76" r="6"></circle>
+                      <path class="eeg-mini-displacement" d="M185 72 191 76"></path>
+
+                      <text class="eeg-mini-label" x="169" y="65">F3</text>
+                      <text class="eeg-mini-label" x="217" y="100">Cz</text>
+                      <text class="eeg-mini-label" x="241" y="140">P4</text>
+                    </g>
+                  </g>
+                </svg>
+
+                <div class="eeg-cap-mini-readout">
+                  <strong>F3</strong>
+                  <span>MNI x −50.2 · y 53.1 · z 42.2</span>
+                </div>
+              </div>
+            </div>
+            <div class="tool-card-body">
+              <div class="tool-card-meta"><span>Browser application</span><span>Version 1.0</span></div>
+              <h2 id="eeg-card-title">EEG Cap Viewer</h2>
+              <p>An interactive 3D workspace for viewing EEG layouts, comparing user coordinates and displacement, controlling electrode visibility, and exploring approximate cortical context.</p>
+              <div class="tag-list" aria-label="EEG Cap Viewer topics">
+                <span class="tag">10–20 / 10–10 / 10–5</span>
+                <span class="tag">CSV comparison</span>
+                <span class="tag">3D visualization</span>
+              </div>
+              <span class="tool-card-link">Explore the viewer
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="page-shell">
+        <div class="content-panel tool-callout reveal">
+          <p class="section-kicker">An evolving collection</p>
+          <h2>New methods can grow into usable tools.</h2>
+          <p>This branch will expand as additional applications, visualization resources, and reproducible research workflows become ready for public use.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+</body>
+</html>

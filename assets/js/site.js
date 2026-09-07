@@ -59,11 +59,18 @@
   };
 
   const navItems = [
-    { page: "home", label: "About", href: "./index.html" },
-    { page: "publications", label: "Publications", href: "./publications.html" },
-    { page: "ideas", label: "Ideas & posts", href: "./ideas.html" },
-    { page: "concepts", label: "Concept atlas", href: "./concepts.html" }
+    { page: "home", label: "About", path: "index.html" },
+    { page: "publications", label: "Publications", path: "publications.html" },
+    { page: "tools", label: "Tools", path: "tools/index.html" },
+    { page: "ideas", label: "Ideas & posts", path: "ideas.html" },
+    { page: "concepts", label: "Concept atlas", path: "concepts.html" }
   ];
+
+  const siteRoot = (document.body?.dataset.siteRoot || ".").replace(/\/+$/, "") || ".";
+
+  function sitePath(path = "") {
+    return `${siteRoot}/${String(path).replace(/^\.?\//, "")}`;
+  }
 
   function escapeHtml(value = "") {
     return String(value)
@@ -119,7 +126,7 @@
       header.innerHTML = `
         <a class="skip-link" href="#main-content">Skip to content</a>
         <div class="nav-shell">
-          <a class="brand" href="./index.html" aria-label="${escapeHtml(content.profile.shortName)} home">
+          <a class="brand" href="${sitePath("index.html")}" aria-label="${escapeHtml(content.profile.shortName)} home">
             <span class="brand-mark">${escapeHtml(content.profile.initials)}</span>
             <span class="brand-copy">
               <strong>${escapeHtml(content.profile.shortName)}</strong>
@@ -128,7 +135,7 @@
           </a>
           <nav class="nav-links" id="primary-navigation" aria-label="Primary navigation">
             ${navItems.map((item) => `
-              <a class="nav-link" href="${item.href}" ${item.page === current ? 'aria-current="page"' : ""}>${item.label}</a>
+              <a class="nav-link" href="${sitePath(item.path)}" ${item.page === current ? 'aria-current="page"' : ""}>${item.label}</a>
             `).join("")}
           </nav>
           <div class="nav-actions">
@@ -146,7 +153,7 @@
         <div class="page-shell">
           <div class="footer-rango-grid">
             <figure class="tms-scene" aria-label="Rango, dressed as a cowboy, delivering TMS to a seated researcher in a cactus-filled desert scene">
-              <img class="tms-scene__art" src="./assets/images/rango-tms-hero.png" alt="Rango holds a figure-eight TMS coil above a seated researcher, surrounded by desert cactuses">
+              <img class="tms-scene__art" src="${sitePath("assets/images/rango-tms-hero.png")}" alt="Rango holds a figure-eight TMS coil above a seated researcher, surrounded by desert cactuses">
               <span class="coil-pulse" aria-hidden="true"></span>
               <span class="dust" style="--x:23%;--y:13%;--s:5px;--d:4.8s;--delay:.2s" aria-hidden="true"></span>
               <span class="dust" style="--x:31%;--y:10%;--s:8px;--d:5.7s;--delay:1.4s" aria-hidden="true"></span>
@@ -464,7 +471,8 @@
       data: "View data",
       pdf: "Open PDF",
       manuscript: "Open manuscript",
-      record: "Open record"
+      record: "Open record",
+      tool: "Explore NESTApp"
     };
     const entries = Object.entries(publication.links || {}).filter(([, value]) => safeHref(value));
     if (!entries.length) return "";

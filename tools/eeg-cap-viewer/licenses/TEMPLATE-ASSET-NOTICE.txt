@@ -1,0 +1,22 @@
+Template asset notice
+=====================
+
+The file:
+
+  assets/fsaverage_scalp_mesh.js
+
+contains vertex and triangle arrays converted from the MNE-Python 1.11.0
+asset:
+
+  mne/data/fsaverage/fsaverage-head.fif
+
+The conversion changed the storage format for browser use and converted
+coordinates from meters to millimeters. It did not create a participant-
+specific anatomical model.
+
+The default coordinate file was generated from MNE-Python's standard_1005
+montage and filtered to the conventional 10-10 labels included in this release.
+
+MNE-Python is licensed under the BSD 3-Clause License. A copy is provided in
+MNE-PYTHON-LICENSE.txt. This release should retain this notice and the MNE
+attribution whenever the converted mesh or coordinates are redistributed.

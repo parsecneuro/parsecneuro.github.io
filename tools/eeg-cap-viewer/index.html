@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <meta name="description" content="Interactive browser-based 3D viewer for international 10-20, 10-10, 10-5 and other EEG montage templates, custom coordinates, and cap-to-cap comparison.">
+  <title>Interactive 3D EEG Cap Viewer</title>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <div id="app-shell">
+    <header class="app-header" id="app-header">
+      <div>
+        <div class="title-row">
+          <h1 id="app-title">Interactive 3D EEG Cap Viewer</h1>
+          <span class="version-badge" id="version-badge">1.0.0</span>
+        </div>
+        <p id="app-subtitle">Browser-based review and comparison of EEG electrode coordinates</p>
+      </div>
+      <div class="header-actions">
+        <button class="secondary-button" id="reset-all-button" type="button">Reset viewer</button>
+        <button class="secondary-button" id="fullscreen-button" type="button">Full screen</button>
+      </div>
+    </header>
+
+    <main class="app-layout">
+      <aside class="control-panel" aria-label="Viewer controls">
+        <details open>
+          <summary>1. Electrode data</summary>
+          <div class="section-body">
+            <div class="control-block cap-reference-block">
+              <div class="control-heading-row">
+                <h2>Reference cap</h2>
+                <span class="status-pill ready" id="reference-status-pill">Default</span>
+              </div>
+              <label>Built-in EEG system
+                <select id="montage-select" aria-label="Choose a built-in EEG montage"></select>
+              </label>
+              <div class="montage-description" id="montage-description">Loading built-in montage information…</div>
+              <p class="small-note">Choose a built-in system or replace it with your own coordinates.</p>
+              <label class="file-button" for="reference-file-input">Load reference CSV</label>
+              <input id="reference-file-input" type="file" accept=".csv,text/csv">
+              <div class="local-data-note"><strong>Your data stays local.</strong> Uploaded CSV files are processed only in your browser and are not uploaded to or stored by this website.</div>
+              <div class="two-column-controls">
+                <label>Units
+                  <select id="reference-units">
+                    <option value="auto" selected>Auto-detect</option>
+                    <option value="mm">Millimeters</option>
+                    <option value="m">Meters</option>
+                  </select>
+                </label>
+                <button class="secondary-button compact" id="restore-default-button" type="button">Restore selected preset</button>
+              </div>
+              <div class="file-status" id="reference-file-status">72 default electrodes loaded.</div>
+            </div>
+
+            <div class="control-block cap-comparison-block">
+              <div class="control-heading-row">
+                <h2>Comparison cap</h2>
+                <span class="status-pill muted" id="comparison-status-pill">Optional</span>
+              </div>
+              <p class="small-note">Load a second CSV to compare electrodes with matching labels.</p>
+              <label class="file-button comparison" for="comparison-file-input">Load comparison CSV</label>
+              <input id="comparison-file-input" type="file" accept=".csv,text/csv">
+              <div class="two-column-controls">
+                <label>Units
+                  <select id="comparison-units">
+                    <option value="auto" selected>Auto-detect</option>
+                    <option value="mm">Millimeters</option>
+                    <option value="m">Meters</option>
+                  </select>
+                </label>
+                <button class="secondary-button compact" id="clear-comparison-button" type="button">Clear comparison</button>
+              </div>
+              <div class="file-status" id="comparison-file-status">No comparison cap loaded.</div>
+            </div>
+
+            <div class="button-row wrap">
+              <button class="text-button" id="download-default-button" type="button">Download current preset CSV</button>
+            </div>
+            <p class="format-note"><strong>Coordinate input:</strong> use <code>label,x,y,z</code> for the exact cap/CSV coordinates. Use <code>label,mni_x,mni_y,mni_z</code> only when those values are already registered to MNI/fsaverage, or include both triplets when both are known. Optional <code>NAS</code>/<code>Nasion</code>, <code>LPA</code>, and <code>RPA</code> fiducial rows can support an estimated template registration. The viewer always preserves the source values and reports the template-MNI estimate separately.</p>
+          </div>
+        </details>
+
+        <details open>
+          <summary>2. Head model and fitting</summary>
+          <div class="section-body">
+            <label>Head model
+              <select id="head-model-select">
+                <option value="template" selected>Template scalp surface</option>
+                <option value="phantom">Analytic head phantom</option>
+              </select>
+            </label>
+
+            <label class="checkbox-row">
+              <input type="checkbox" id="auto-fit-checkbox" checked>
+              <span>Adapt the head to loaded coordinates</span>
+            </label>
+            <p class="small-note">The electrodes remain at their original coordinates. The displayed head is scaled and smoothly adjusted beneath them.</p>
+
+            <label>Fit head using
+              <select id="fit-source-select">
+                <option value="reference" selected>Reference cap</option>
+                <option value="comparison">Comparison cap</option>
+                <option value="average">Average of both caps</option>
+              </select>
+            </label>
+
+            <div class="range-control">
+              <div class="range-label"><span>Adaptive scalp fit</span><output id="warp-strength-output">75%</output></div>
+              <input id="warp-strength-range" type="range" min="0" max="1" step="0.05" value="0.75">
+            </div>
+            <div class="range-control">
+              <div class="range-label"><span>Scalp clearance below electrodes</span><output id="clearance-output">2.0 mm</output></div>
+              <input id="clearance-range" type="range" min="0" max="8" step="0.5" value="2">
+            </div>
+            <div class="range-control">
+              <div class="range-label"><span>Overall head scale</span><output id="head-scale-output">1.00</output></div>
+              <input id="head-scale-range" type="range" min="0.75" max="1.30" step="0.01" value="1">
+            </div>
+            <div class="range-control">
+              <div class="range-label"><span>Head opacity</span><output id="head-opacity-output">0.58</output></div>
+              <input id="head-opacity-range" type="range" min="0.05" max="1" step="0.01" value="0.58">
+            </div>
+            <label class="color-row">Head color
+              <input id="head-color-input" type="color" value="#d8b49b" aria-label="Head color">
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="head-contours-checkbox" checked>
+              <span>Show subtle surface contours</span>
+            </label>
+            <div class="model-status" id="head-model-status">Template scalp surface ready.</div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>3. Cap appearance</summary>
+          <div class="section-body">
+            <div class="appearance-card reference-card">
+              <h2>Reference cap</h2>
+              <label class="color-row">Color
+                <input id="reference-color-input" type="color" value="#1769aa" aria-label="Reference electrode color">
+              </label>
+              <div class="range-control">
+                <div class="range-label"><span>Electrode size</span><output id="reference-size-output">7</output></div>
+                <input id="reference-size-range" type="range" min="2" max="20" step="1" value="7">
+              </div>
+              <div class="range-control">
+                <div class="range-label"><span>Opacity</span><output id="reference-opacity-output">1.00</output></div>
+                <input id="reference-opacity-range" type="range" min="0.05" max="1" step="0.01" value="1">
+              </div>
+            </div>
+
+            <div class="appearance-card comparison-card">
+              <h2>Comparison cap</h2>
+              <label class="color-row">Color
+                <input id="comparison-color-input" type="color" value="#d1495b" aria-label="Comparison electrode color">
+              </label>
+              <div class="range-control">
+                <div class="range-label"><span>Electrode size</span><output id="comparison-size-output">7</output></div>
+                <input id="comparison-size-range" type="range" min="2" max="20" step="1" value="7">
+              </div>
+              <div class="range-control">
+                <div class="range-label"><span>Opacity</span><output id="comparison-opacity-output">0.82</output></div>
+                <input id="comparison-opacity-range" type="range" min="0.05" max="1" step="0.01" value="0.82">
+              </div>
+            </div>
+
+            <label class="checkbox-row">
+              <input type="checkbox" id="show-labels-checkbox" checked>
+              <span>Show electrode labels</span>
+            </label>
+            <label class="color-row">Label color
+              <input id="label-color-input" type="color" value="#172033" aria-label="Electrode label color">
+            </label>
+            <div class="range-control">
+              <div class="range-label"><span>Label font size</span><output id="font-size-output">11 px</output></div>
+              <input id="font-size-range" type="range" min="7" max="24" step="1" value="11">
+            </div>
+            <div class="range-control">
+              <div class="range-label"><span>Selection hit area</span><output id="hitbox-size-output">16</output></div>
+              <input id="hitbox-size-range" type="range" min="6" max="34" step="1" value="16">
+            </div>
+            <label class="color-row">Viewer background
+              <input id="background-color-input" type="color" value="#f4f6f9" aria-label="Viewer background color">
+            </label>
+          </div>
+        </details>
+
+        <details open>
+          <summary>4. Electrode visibility</summary>
+          <div class="section-body">
+            <p class="small-note">Activate the editor to hide or restore individual electrodes without deleting coordinates or changing cap-comparison calculations.</p>
+            <button class="secondary-button visibility-mode-button" id="visibility-edit-button" type="button" aria-pressed="false">Edit electrode visibility: Off</button>
+            <div class="visibility-mode-status" id="visibility-editor-status">Activate the editor to open the electrode checklist. While it is active, clicking a visible electrode in the 3D view hides it.</div>
+            <div id="visibility-editor-panel" class="visibility-editor-panel" hidden>
+              <label>Apply checklist to
+                <select id="visibility-target-select">
+                  <option value="reference" selected>Reference cap</option>
+                  <option value="comparison">Comparison cap</option>
+                  <option value="both">Both caps</option>
+                </select>
+              </label>
+              <label>Find electrode
+                <input id="visibility-search-input" type="search" placeholder="For example: F3, Cz, E12" autocomplete="off">
+              </label>
+              <div class="button-row wrap visibility-actions">
+                <button class="secondary-button compact" id="visibility-show-all-button" type="button">Show all</button>
+                <button class="secondary-button compact" id="visibility-hide-all-button" type="button">Hide all</button>
+                <button class="secondary-button compact" id="visibility-invert-button" type="button">Invert</button>
+              </div>
+              <div class="visibility-summary" id="visibility-summary">All reference electrodes are visible.</div>
+              <div class="electrode-visibility-list" id="electrode-visibility-list" role="group" aria-label="Electrode visibility checklist"></div>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>5. Comparison display</summary>
+          <div class="section-body">
+            <label class="checkbox-row">
+              <input type="checkbox" id="show-lines-checkbox" checked>
+              <span>Show matched-electrode displacement lines</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="color-by-distance-checkbox">
+              <span>Color comparison electrodes by displacement</span>
+            </label>
+            <div class="range-control">
+              <div class="range-label"><span>Line opacity</span><output id="line-opacity-output">0.65</output></div>
+              <input id="line-opacity-range" type="range" min="0.05" max="1" step="0.01" value="0.65">
+            </div>
+            <button class="secondary-button" id="download-comparison-button" type="button" disabled>Download comparison results</button>
+          </div>
+        </details>
+      </aside>
+
+      <section class="viewer-column">
+        <nav class="view-toolbar" aria-label="Preset camera views">
+          <span>View:</span>
+          <button type="button" data-view="default" class="view-button active">3D</button>
+          <button type="button" data-view="front" class="view-button">Front</button>
+          <button type="button" data-view="back" class="view-button">Back</button>
+          <button type="button" data-view="left" class="view-button">Left</button>
+          <button type="button" data-view="right" class="view-button">Right</button>
+          <button type="button" data-view="top" class="view-button">Top</button>
+          <button type="button" data-view="bottom" class="view-button">Bottom</button>
+        </nav>
+
+        <div class="viewer-card">
+          <div id="loading-overlay"><div class="spinner"></div><span>Preparing 3D viewer…</span></div>
+          <div id="eeg-plot" role="img" aria-label="Interactive 3D EEG cap viewer"></div>
+        </div>
+
+        <section class="selected-coordinate-strip" id="selected-coordinate-strip" aria-live="polite" aria-label="Selected electrode source and template MNI coordinates">
+          <div class="selected-coordinate-heading">
+            <span id="selected-coordinate-label">No electrode selected</span>
+            <small>Click an electrode to display its exact source coordinate and its separate template MNI/fsaverage scalp projection.</small>
+          </div>
+          <div class="selected-coordinate-grid">
+            <div class="selected-coordinate-block source">
+              <span>Original / CSV coordinate</span>
+              <strong id="selected-coordinate-value">x — · y — · z —</strong>
+              <small id="selected-coordinate-frame">Coordinate frame not selected.</small>
+            </div>
+            <div class="selected-coordinate-block mni">
+              <span>Template MNI/fsaverage scalp projection</span>
+              <strong id="selected-mni-coordinate-value">x — · y — · z —</strong>
+              <small id="selected-mni-coordinate-method">Projection method will be shown here.</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="summary-grid">
+          <article class="info-card" id="selected-electrode-card">
+            <div class="card-title-row">
+              <h2>Selected electrode information</h2>
+              <span class="status-pill muted" id="selected-cap-pill">None</span>
+            </div>
+            <div id="selected-electrode-content" class="empty-state">Click an electrode in the 3D viewer. Hovering also previews its information.</div>
+          </article>
+
+          <article class="info-card">
+            <h2>Cap comparison</h2>
+            <div class="metrics-grid">
+              <div><span class="metric-value" id="matched-count">0</span><span class="metric-label">Matched labels</span></div>
+              <div><span class="metric-value" id="mean-distance">—</span><span class="metric-label">Mean source distance</span></div>
+              <div><span class="metric-value" id="max-distance">—</span><span class="metric-label">Maximum source distance</span></div>
+            </div>
+            <div id="comparison-table-wrap" class="table-wrap empty-state">Load a comparison CSV to calculate electrode differences.</div>
+          </article>
+        </section>
+
+        <footer class="viewer-footer">
+          <p>EEG coordinates and CSV contents are processed locally in your browser and are not uploaded or stored by this website.</p>
+          <p>Template scalp: MNE-Python fsaverage head surface. Source coordinates and template MNI/fsaverage scalp projections are reported separately; estimated projections are not subject-specific MRI coregistration. See <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">third-party notices</a>.</p>
+        </footer>
+      </section>
+    </main>
+
+    <footer class="developer-credit">
+      <span>Developed by <a data-developer-link href="https://parsecneuro.github.io/">Aref Pariz, Ph.D.</a> for <a data-developer-link data-link-text="site" href="https://parsecneuro.github.io/">PARSEC Neuro</a> · Website: <a data-developer-link data-link-text="url" href="https://parsecneuro.github.io/">parsecneuro.github.io</a>.</span>
+      <span>Designed and developed with assistance from ChatGPT.</span>
+    </footer>
+  </div>
+
+  <noscript>This viewer requires JavaScript.</noscript>
+  <script src="./js/vendor/plotly-6.5.2.min.js"></script>
+  <script src="./js/config.js"></script>
+  <script src="./data/default_1010.js"></script>
+  <script src="./data/montage_presets.js"></script>
+  <script src="./data/electrode_metadata.js"></script>
+  <script src="./assets/fsaverage_scalp_mesh.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

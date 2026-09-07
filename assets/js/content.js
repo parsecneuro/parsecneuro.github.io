@@ -196,7 +196,8 @@ window.NEUROFOLIO_CONTENT = {
       methods: ["TMS-EEG", "EEGLAB", "MATLAB App Designer", "Signal preprocessing"],
       links: {
         manuscript: "https://ssrn.com/abstract=6204470",
-        code: "https://github.com/arefpz/NESTAPP"
+        code: "https://github.com/arefpz/NESTAPP",
+        tool: "./tools/nestapp/index.html"
       },
       visual: { kind: "pipeline", label: "Modular preprocessing pipeline" }
     },

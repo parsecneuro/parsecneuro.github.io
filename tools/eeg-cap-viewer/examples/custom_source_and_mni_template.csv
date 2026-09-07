@@ -1,0 +1,5 @@
+label,x,y,z,mni_x,mni_y,mni_z,point_type,coordinate_frame,region,function,region_url
+F3,-42.10,61.50,72.00,-50.24,53.11,42.19,electrode,Example cap/device coordinates,left dorsolateral prefrontal cortex,"Executive control, working memory, and planning.",https://www.ncbi.nlm.nih.gov/books/NBK538496/
+C3,-58.00,2.20,84.70,-65.36,-11.63,64.36,electrode,Example cap/device coordinates,left sensorimotor cortex,"Contralateral motor and somatosensory processing.",https://www.ncbi.nlm.nih.gov/books/NBK538496/
+Oz,0.40,-98.20,35.10,0.11,-114.89,14.66,electrode,Example cap/device coordinates,midline occipital cortex,Visual processing.,https://www.ncbi.nlm.nih.gov/books/NBK482504/
+Pz,0.20,-55.00,82.00,,,,electrode,Example cap/device coordinates,,,

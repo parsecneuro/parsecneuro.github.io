@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="NESTApp is a MATLAB graphical application for creating, running, reviewing, and documenting EEG and TMS-EEG preprocessing workflows.">
+  <meta name="theme-color" content="#070916">
+  <title>NESTApp — Tools by Aref Pariz</title>
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("neurofolio-theme") || "dark"; } catch (_) { document.documentElement.dataset.theme = "dark"; }</script>
+  <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../assets/css/styles.css">
+  <script defer src="../../assets/js/content.js"></script>
+  <script defer src="../../assets/js/cortex.js"></script>
+  <script defer src="../../assets/js/site.js"></script>
+</head>
+<body data-page="tools" data-site-root="../..">
+  <header id="site-header"></header>
+
+  <main id="main-content">
+    <section class="tool-detail-hero">
+      <div class="page-shell tool-detail-hero-grid">
+        <div>
+          <div class="breadcrumbs reveal"><span><a href="../index.html">Tools</a></span><span>NESTApp</span></div>
+          <p class="eyebrow reveal">MATLAB application · EEG / TMS–EEG</p>
+          <h1 class="page-title reveal">Build the pipeline. Run the batch. Keep the record.</h1>
+          <p class="page-intro reveal">NESTApp is a graphical interface for assembling and running modular EEG and TMS–EEG preprocessing workflows with EEGLAB, TESA, FastICA, and compatible methods.</p>
+          <div class="hero-actions reveal">
+            <a class="button primary" href="https://github.com/arefpz/NESTAPP/releases/latest" target="_blank" rel="noopener noreferrer">Download latest release
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="button" href="https://github.com/arefpz/NESTAPP" target="_blank" rel="noopener noreferrer">GitHub repository</a>
+            <a class="button ghost" href="https://ssrn.com/abstract=6204470" target="_blank" rel="noopener noreferrer">Read the paper</a>
+          </div>
+        </div>
+
+        <div class="nestapp-window reveal" aria-hidden="true">
+          <div class="nestapp-window-bar"><span></span><span></span><span></span><strong>NESTApp</strong></div>
+          <div class="nestapp-window-body">
+            <div class="nestapp-modules">
+              <span>Load data</span>
+              <span>Remove pulse</span>
+              <span>Filter</span>
+              <span>ICA</span>
+              <span>Interpolate</span>
+            </div>
+            <div class="nestapp-pipeline">
+              <span class="nest-step active">01</span>
+              <i></i>
+              <span class="nest-step">02</span>
+              <i></i>
+              <span class="nest-step">03</span>
+              <i></i>
+              <span class="nest-step">04</span>
+              <b></b>
+            </div>
+            <div class="nestapp-report">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight" id="overview">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">What to expect</p>
+          <div>
+            <h2 class="section-title">A guided interface around a configurable scientific workflow.</h2>
+            <p class="section-copy">The application separates pipeline design from routine execution: an experienced user can configure and validate a workflow, save it, and reuse the same ordered steps and parameters across files or collaborators.</p>
+          </div>
+        </header>
+
+        <div class="tool-fact-grid">
+          <article class="tool-fact reveal"><strong>Point-and-click</strong><span>Choose, order, and configure processing modules without writing the workflow from scratch.</span></article>
+          <article class="tool-fact reveal"><strong>Batch-ready</strong><span>Apply one saved pipeline across multiple compatible EEG files with visible progress.</span></article>
+          <article class="tool-fact reveal"><strong>Reviewable</strong><span>Inspect reports, processing history, TEP waveforms, topographies, and exported peak data.</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="workflow">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Typical workflow</p>
+          <div>
+            <h2 class="section-title">From raw recordings to an auditable output.</h2>
+            <p class="section-copy">Users remain in control of the scientific decisions while NESTApp organizes the sequence, execution, and reporting.</p>
+          </div>
+        </header>
+
+        <ol class="tool-workflow-grid">
+          <li class="tool-workflow-step reveal">
+            <span>01</span>
+            <h3>Start with a template—or an empty pipeline</h3>
+            <p>Load a ready-made workflow or select modules from the Cleaning tab. Add, remove, reorder, and configure each step and its parameters.</p>
+          </li>
+          <li class="tool-workflow-step reveal">
+            <span>02</span>
+            <h3>Select data and run</h3>
+            <p>Choose one or more <code>.set</code>, <code>.vhdr</code>, <code>.cnt</code>, or <code>.cdt</code> files. The progress display follows the current file and processing step.</p>
+          </li>
+          <li class="tool-workflow-step reveal">
+            <span>03</span>
+            <h3>Review quality and provenance</h3>
+            <p>Inspect per-file summaries for channels, retained trials, and ICA statistics. The complete pipeline, parameters, template citation, and timestamp remain in the processing history.</p>
+          </li>
+          <li class="tool-workflow-step reveal">
+            <span>04</span>
+            <h3>Visualize and export</h3>
+            <p>Review TMS-evoked potentials and topographies, inspect canonical TEP components, export figures, and create long-format peak tables for downstream analysis.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section-tight" id="capabilities">
+      <div class="page-shell">
+        <header class="section-header reveal">
+          <p class="section-kicker">Inside the application</p>
+          <div>
+            <h2 class="section-title">The main capabilities users will encounter.</h2>
+          </div>
+        </header>
+
+        <div class="tool-feature-grid">
+          <article class="tool-feature reveal"><span>Pipeline builder</span><h3>Ordered, editable modules</h3><p>Select a processing step to see its purpose and parameters, then place it wherever it belongs in the pipeline.</p></article>
+          <article class="tool-feature reveal"><span>Reusable setup</span><h3>Save and reload pipelines</h3><p>Store the selected steps and settings as a MATLAB file, restore them later, and access recent pipelines from the application.</p></article>
+          <article class="tool-feature reveal"><span>Templates</span><h3>Published workflows as starting points</h3><p>Begin from TESA, ARTIST, AARATEP, resting-state, or minimal-processing templates and adapt them to the study.</p></article>
+          <article class="tool-feature reveal"><span>Quality review</span><h3>Reports after every run</h3><p>Browse subject-level summaries, copy a methods-ready description, and export batch summaries to CSV.</p></article>
+          <article class="tool-feature reveal"><span>Visualization</span><h3>TEPs and scalp topographies</h3><p>Choose an electrode region of interest, overlay datasets, identify canonical TEP components, and inspect spatial patterns.</p></article>
+          <article class="tool-feature reveal"><span>Analysis export</span><h3>Peaks ready for statistics</h3><p>Export component latency and amplitude in a long-format table with trial counts, search windows, and ROI channels.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="templates">
+      <div class="page-shell">
+        <div class="tool-section-panel reveal">
+          <p class="section-kicker">Included starting points</p>
+          <h2>Pipeline templates</h2>
+          <p>Templates make established processing strategies easier to load and inspect. They are starting points, not substitutes for study-specific validation.</p>
+          <div class="tool-table-wrap">
+            <table class="tool-table">
+              <thead><tr><th scope="col">Template</th><th scope="col">What it provides</th></tr></thead>
+              <tbody>
+                <tr><td>TMS–EEG / TEP (TESA)</td><td>A two-round ICA artifact-removal workflow for single-pulse TMS–EEG.</td></tr>
+                <tr><td>TESA + Quality Gates</td><td>The TESA workflow with four checkpoints for explicit quality review.</td></tr>
+                <tr><td>TMS–EEG / ARTIST</td><td>A workflow based on the published ARTIST sequence, using available TESA component-selection tools.</td></tr>
+                <tr><td>TMS–EEG / AARATEP</td><td>SOUND, decay-artifact handling, interpolation, and TMS-aware muscle-component processing.</td></tr>
+                <tr><td>Resting-State EEG</td><td>A PREP- and ICLabel-informed resting-state cleaning workflow.</td></tr>
+                <tr><td>Minimal (Delorme)</td><td>A deliberately restrained high-pass filter, bad-channel, and ICA workflow.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight" id="requirements">
+      <div class="page-shell tool-two-column">
+        <div class="tool-section-panel reveal">
+          <p class="section-kicker">Before installing</p>
+          <h2>Core requirements</h2>
+          <div class="tool-table-wrap">
+            <table class="tool-table compact-table">
+              <tbody>
+                <tr><th scope="row">MATLAB</th><td>R2023b or later</td></tr>
+                <tr><th scope="row">EEGLAB</th><td>2025.0.0</td></tr>
+                <tr><th scope="row">TESA</th><td>1.1.1</td></tr>
+                <tr><th scope="row">FastICA</th><td>2.5</td></tr>
+                <tr><th scope="row">Toolboxes</th><td>Signal Processing; Statistics and Machine Learning</td></tr>
+                <tr><th scope="row">AARATEP only</th><td>Curve Fitting Toolbox and the AARATEP helper functions</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <aside class="tool-note reveal">
+          <p class="section-kicker">Scientific responsibility</p>
+          <h2>Automation does not choose the right pipeline for you.</h2>
+          <p>NESTApp helps execute and document a workflow consistently. Researchers should still justify their processing choices, inspect intermediate and final signals, verify dependency versions, and cite both NESTApp and the methods underlying any template they use.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="resources">
+      <div class="page-shell">
+        <div class="resource-panel reveal">
+          <div>
+            <p class="section-kicker">Access &amp; citation</p>
+            <h2>Get the application or read the accompanying work.</h2>
+            <p>Pariz A, Dunne W, Lefebvre J, and Tremblay S. <em>NESTApp: A GUI-Based MATLAB Application for Simplified TMS-EEG Preprocessing with EEGLAB.</em></p>
+          </div>
+          <div class="resource-links">
+            <a class="button primary" href="https://github.com/arefpz/NESTAPP/releases/latest" target="_blank" rel="noopener noreferrer">Latest release</a>
+            <a class="button" href="https://github.com/arefpz/NESTAPP/releases" target="_blank" rel="noopener noreferrer">All releases</a>
+            <a class="button" href="https://github.com/arefpz/NESTAPP" target="_blank" rel="noopener noreferrer">Source &amp; documentation</a>
+            <a class="button" href="https://ssrn.com/abstract=6204470" target="_blank" rel="noopener noreferrer">Paper</a>
+            <a class="button ghost" href="../../publications.html#pub-nestapp-tms-eeg-preprocessing">Publication entry</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+</body>
+</html>
