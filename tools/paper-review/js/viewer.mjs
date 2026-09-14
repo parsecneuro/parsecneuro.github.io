@@ -41,7 +41,7 @@ export class ReviewPane {
     this.stack.dataset.annotationTool = this.tool;
     this.container.append(this.stack);
     this._scrollHandler = () => {
-      if (this._gesture && !this._gesture.nativeSelection) this._cancelGesture();
+      if (this._gesture && !this._gesture.nativeSelection && this._gesture.tool !== 'hand') this._cancelGesture();
       this._schedule();
     };
     this._selectionHandler = () => {
@@ -164,6 +164,13 @@ export class ReviewPane {
     this._relayout(true);
   }
 
+  zoomBy(direction) {
+    const current = this.zoom === 'fit' ? (this.pages[this.currentPage - 1]?.scale || 1) : this.zoom;
+    const next = Math.round(Math.max(.25, Math.min(4, current * (direction > 0 ? 1.2 : 1 / 1.2))) * 100) / 100;
+    this.setZoom(next);
+    return next;
+  }
+
   /** Root controller owns persistence and broadcasts the same records to both panes. */
   setAnnotations(records) {
     this.annotations = (Array.isArray(records) ? records : []).map(cleanAnnotation).filter(Boolean);
@@ -180,6 +187,7 @@ export class ReviewPane {
     this.tool = ANNOTATION_TOOLS.has(tool) ? tool : 'select';
     this.color = /^#[0-9a-f]{6}$/i.test(color) ? color : '#f4d75e';
     this.stack.dataset.annotationTool = this.tool;
+    this.container.dataset.panTool = this.tool === 'hand' ? 'hand' : '';
     for (const page of this.pages) {
       page.annotationLayer?.querySelectorAll('[data-annotation-id]').forEach(mark => {
         mark.setAttribute('tabindex', this.tool === 'select' || this.tool === 'erase' ? '0' : '-1');
@@ -469,6 +477,16 @@ export class ReviewPane {
 
   _pointerDown(event) {
     if (event.button !== 0 || event.isPrimary === false || this.tool === 'select' || this.tool === 'erase') return;
+    if (this.tool === 'hand' && this.pdf) {
+      this._cancelGesture();
+      this._gesture = { tool: 'hand', pointerId: event.pointerId, start: { x: event.clientX, y: event.clientY },
+        scrollLeft: this.container.scrollLeft, scrollTop: this.container.scrollTop };
+      this.container.dataset.panning = 'true';
+      window.getSelection()?.removeAllRanges();
+      event.preventDefault();
+      try { this.container.setPointerCapture(event.pointerId); } catch {}
+      return;
+    }
     const page = this._pageFromTarget(event.target);
     if (!page || page.status !== 'ready') return;
     this._cancelGesture();
@@ -494,6 +512,13 @@ export class ReviewPane {
   _pointerMove(event) {
     const gesture = this._gesture;
     if (!gesture || event.pointerId !== gesture.pointerId || gesture.nativeSelection) return;
+    if (gesture.tool === 'hand') {
+      event.preventDefault();
+      this.container.scrollLeft = gesture.scrollLeft - (event.clientX - gesture.start.x);
+      this.container.scrollTop = gesture.scrollTop - (event.clientY - gesture.start.y);
+      this._schedule();
+      return;
+    }
     gesture.end = { x: event.clientX, y: event.clientY };
     if (event.pointerType !== 'touch') event.preventDefault();
     this._updatePreview();
@@ -514,6 +539,7 @@ export class ReviewPane {
   _pointerUp(event) {
     const gesture = this._gesture;
     if (!gesture || event.pointerId !== gesture.pointerId) return;
+    if (gesture.tool === 'hand') { this._cancelGesture(); return; }
     gesture.end = { x: event.clientX, y: event.clientY };
     if (gesture.nativeSelection) {
       const annotations = this._textHighlights(gesture.color);
@@ -568,6 +594,11 @@ export class ReviewPane {
     if (!gesture) return;
     this._gesture = null;
     gesture.preview?.remove();
+    if (gesture.tool === 'hand') {
+      delete this.container.dataset.panning;
+      try { if (this.container.hasPointerCapture(gesture.pointerId)) this.container.releasePointerCapture(gesture.pointerId); } catch {}
+      return;
+    }
     try {
       if (gesture.page.element.hasPointerCapture(gesture.pointerId)) gesture.page.element.releasePointerCapture(gesture.pointerId);
     } catch {}

@@ -1,70 +1,89 @@
-PAPER REVIEW 1.0.0-alpha.1 (ALPHA 1)
+PAPER REVIEW 1.0.0-alpha.2 (ALPHA 2)
 
-OPEN THE APP
-On your website: Tools > Paper Review.
-On Windows: extract the ZIP, then double-click start_local.bat in this folder.
-On macOS/Linux: open a terminal here and run python3 start_local.py.
-Python 3 is needed only for local preview. Keep the terminal open while using
-http://127.0.0.1:8765/index.html. Press Ctrl+C in the terminal to stop.
-Keep the same website/local address and browser to restore saved reviews.
+OPEN THE WEBSITE
+Use Tools > Paper Review on your published website:
+https://parsecneuro.github.io/tools/paper-review/
+No Python, BAT file, Git installation, or terminal command is needed to use
+the published app. Opening a downloaded index.html file directly is different
+from opening the website. Keep the bundled vendor files on GitHub Pages.
 
-READ AND COMMENT
-Open your PDF. Both views scroll and zoom independently. Drag the dividers
-to adjust their sizes. The header, icons, and page margins are more compact.
-A notebook comment records the left-hand PDF page where you began typing.
-View all comments opens the editable review. Export .txt downloads saved
-comments plus any unfinished notebook draft, without automatic page markers.
+READ AND NAVIGATE
+Both PDF views scroll independently. Each has zoom-out and zoom-in buttons,
+a zoom menu, and a hand tool. Select the hand and drag to pan horizontally
+or vertically. Drag the dividers to resize the two views and notebook.
 
-ANNOTATE
-Each PDF has a small toolbar: Select, Highlight, Note, Circle/Ellipse,
-Rectangle, Erase, Color, and Undo. Hover over an icon to see its name.
-Highlight: drag across text. On a scanned page, drag a highlight rectangle.
-Note: click the desired location, write your note, and save it.
-Circle/Rectangle: drag around the area you want to mark with your mouse/pen.
-Select: click an existing mark to edit its note or color, or delete it.
-Erase: click a mark to remove it. Undo restores the last annotation change.
-Marks appear in both views and are saved locally with the current PDF.
-Notebook comments and notes attached to PDF marks are separate.
+COMMENTS AND ANNOTATIONS
+A notebook comment privately records the left-hand PDF page where you began
+typing. View all comments opens the editable review in a popup. Export .txt
+downloads all notebook comments plus any unfinished draft, without automatic
+page markers. There is no inline list of comments beneath the notebook.
 
-EXPORT AND REMOVE
-The buttons below the main notebook give you all file actions.
-Export .txt downloads the notebook review. Export PDF creates a separate
-PDF with native annotations. Other PDF
-viewers can show the marks and open their attached notes. The original file
-is unchanged. Export of password-protected PDFs is not supported.
-The red Remove PDF & notes button closes the current paper and deletes its
-saved notebook comments, draft, PDF annotations, and extracted references
-from this browser after confirmation. It does not delete your original PDF.
-Export any copies you need before removing the review.
+Each PDF toolbar offers Select, Hand, Highlight, Note, Circle/Ellipse,
+Rectangle, Erase, Color, Undo, and Redo. Hover for labels. Marks appear in
+both views. Undo and Redo share the annotation history across both views;
+making a new change clears the redo list. Ctrl/Cmd+Z undoes and
+Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y redoes when you are not editing text.
+
+SAVE PDF
+Save PDF replaces Export PDF. In a browser supporting file access (such as
+desktop Chrome or Edge), use Open PDF to select your original file. Save PDF
+can write your annotations back to that file when you grant permission.
+A PDF opened by drag and drop may need a save-location prompt. Other
+browsers download a reviewed PDF copy. The status message reports whether
+the app wrote to a file or sent a copy to downloads. Ctrl/Cmd+S also saves
+the PDF when no dialog is open.
+
+Saved PDFs contain native highlights, notes, circles and rectangles.
+Annotations saved by Alpha 2 can be edited again in this app after reopening
+the saved PDF. Original PDF annotations are preserved. Notebook comments
+remain separate: use Export .txt to keep those. PDF export does not include
+notebook comments or their automatic page metadata.
+
+Saving password-protected PDFs is not supported. If another program changes
+the selected PDF, reopen it before saving here. Failed or cancelled writes
+leave your workspace open.
+
+CLOSING, SWITCHING, AND RETURNING TO TOOLS
+Opening another PDF, Close PDF, and the links back to Tools ask you to
+confirm before erasing this workspace's comments, PDF notes, annotations,
+and extracted references. Save PDF and export comments before confirming.
+Cancelling keeps your current review. A file that fails validation does not
+replace or erase the current review. Saved PDFs and TXT files stay on your
+computer when the workspace closes.
+
+For tab close, reload, or browser navigation, the browser shows its standard
+leave warning when the review contains work. Its wording is chosen by the
+browser. Browsers can suppress the warning, particularly on mobile. A normal
+page-exit event clears this workspace; cancelling the warning does not.
+Switching tabs does not erase the review. Browser autosave provides recovery
+while a review is open. Browser crashes, force-closing, or blocked site storage
+can prevent exit cleanup or recovery; export files to keep your work.
 
 REFERENCES
-Select the bibliography pages in References and extract the list locally.
-Method: Improved uses local citation-pattern rules. Original (v0.1) restores
-the first version's extraction and can be used whenever that works better.
-Citation style: Detect automatically, Author-year (APA/Harvard patterns), or
-Numbered (IEEE/Vancouver patterns). Style hints affect how entries split;
-they do not rewrite references or verify them against an online database.
-Page layout: Detect automatically, One column, or Two columns. Choose the
-matching layout when a PDF's text order is unusual.
-Remove manuscript line numbers is OFF initially. Turn it on only when line
-numbers enter the extracted bibliography. Ambiguous numbers are preserved.
-The Original method uses the old automatic layout and ignores new settings.
-Check entries against the PDF and use the editable bibliography field to
-correct remaining mistakes. Local English OCR is available for scans.
-Optional Google links send only the selected citation when you open one.
+Choose bibliography pages and extract locally. The Improved method uses
+author-list patterns, numbering, and PDF indentation to keep wrapped lines
+together, including continuations onto another page. Choose the citation
+style (APA/Harvard author-year or IEEE/Vancouver numbered) and column layout
+if automatic detection needs help. Enable manuscript line-number removal
+when margin numbers enter the extracted text; it starts off by default.
 
-LOCAL SAVING
-PDFs are read in browser memory and are not uploaded or stored by the app.
-Comments, annotations, and extracted references are saved in this browser.
-Reopen the same PDF to restore them. If saving is blocked, reviews remain
-in this tab until it closes; reopen affected PDFs and export your work.
-Clearing browser data, private browsing, or changing the website address
-can make saved reviews unavailable. Export copies when finished.
-TXT export contains only notebook comments. Use Export PDF for marks.
-Privacy & help contains instructions and privacy information only.
+If one citation is split, use Merge with previous on its extra entry.
+You can also edit the extracted bibliography and rebuild the list, or choose
+Original (v0.1) extraction. Extracting/rebuilding replaces manual merges.
+Check the entries against the PDF: these are local format rules, not online
+verification or a complete citation database. Local English OCR supports scans.
+Optional Google links send the selected citation only when you open a link.
 
-All PDF, annotation, and OCR processing uses bundled local files. The app
-has no AI review service, manuscript upload, or automatic search.
-When the website counter is enabled, app openings send only the app ID
-and a random request ID to the counter service. PDFs, filenames, notes,
-annotations, and references stay local. Local previews do not count.
+PRIVACY AND COUNTERS
+PDF reading, annotation, and OCR run locally with bundled files. The app
+does not upload PDFs, filenames, review notes, or references, and uses no AI
+review or summary service. Privacy & help contains guidance only.
+
+The counters are public on the Tools cards; the admin page only manages
+resets. When configured, app opening sends its app ID and a random request
+ID to the counter service. Bookmarks and reloads count too. These are page
+opening totals, not unique-user counts; NESTApp counts its website visits.
+
+Browser API details:
+https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker
+https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeunload_event

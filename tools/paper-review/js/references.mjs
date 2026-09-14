@@ -17,6 +17,10 @@ const surname = `${FAMILY_PARTICLES}[\\p{Lu}][\\p{L}\\p{M}'’\\-]+(?:\\s+[\\p{L
 const commaPerson = new RegExp(`^(${surname}),\\s*(?:[\\p{Lu}](?:\\.|(?=[\\p{Lu}\\s,;&]))|[\\p{Lu}][\\p{Ll}]+)`, 'u');
 const initialPerson = new RegExp(`^(${surname})\\s+([\\p{Lu}]{1,3}(?:\\.|(?=[\\s,;&(])))`, 'u');
 const initialsFirst = /^[\p{Lu}]\.(?:\s*[\p{Lu}]\.)*\s+[\p{Lu}][\p{L}'’\-]+/u;
+const initials = '(?:[\\p{Lu}]\\.(?:[\\s-]*[\\p{Lu}]\\.)*|[\\p{Lu}]{1,5}\\.?(?![\\p{L}]))';
+const givenNames = '[\\p{Lu}][\\p{Ll}\\p{M}’\'-]+(?:\\s+[\\p{Lu}][\\p{Ll}\\p{M}’\'-]+){0,2}';
+const fullPerson = `(?:${surname},?\\s+(?:${initials}|${givenNames})|${initials}\\s+${surname})`;
+const authorList = new RegExp(`^${fullPerson}(?:\\s*(?:,?\\s*(?:&|and)|[,;]|,?\\s*…|,?\\s*\\.\\.\\.)\\s*${fullPerson})*(?:[,\\s]+et\\s+al\\.?)?[.,\\s]*$`, 'u');
 const normalizeText = text => String(text || '').normalize('NFC').replace(/\u00a0/g, ' ').replace(/\u00ad/g, '').trim();
 
 function linesFromRaw(rawText, page = 1) {
@@ -70,7 +74,7 @@ function authorDateInfo(text, following = []) {
   const authorPart = combined.slice(0, date.index).replace(/\(\s*$/, '').trim();
   // A strong person pattern can occur in a title continuation. If an obvious
   // title sentence occurs before the date, it is not an author-year boundary.
-  if (person && /\.[ \t]+[\p{Lu}][\p{Ll}]{2,}(?:\s+[\p{Ll}][\p{L}'’\-]+){2,}/u.test(authorPart)) return null;
+  if (person && !authorList.test(authorPart.replace(/\s*\((?:Eds?|Editors?)\.?\)\.?\s*$/i,''))) return null;
   if (group) group = authorPart.replace(/[.,\s]+$/, '');
   return { label: `${person || group}, ${date.label}`, date, complete: !!publicationDate(text) };
 }
@@ -272,7 +276,10 @@ function parseLines(input, style = 'auto') {
   let lines = splitInlineNumbered(joinDetachedLabels(bibliographyLines(input)));
   const starts = lines.map(line => numberedStart(line.text)).filter(Boolean);
   const explicitCount = starts.filter(start => start.explicit).length;
-  const numberStyle = style === 'numbered' || (style === 'auto' && (explicitCount >= 2 || starts.length >= 2 || (starts.length === 1 && lines.some(line => referenceEvidence(line.text)))));
+  const firstNumber=lines.findIndex(line=>numberedStart(line.text));
+  const firstAuthor=lines.findIndex((line,index)=>authorDateInfo(line.text,lines.slice(index+1,index+6)));
+  const authorLeads=firstAuthor>=0&&(firstNumber<0||firstAuthor<firstNumber);
+  const numberStyle = style === 'numbered' || (style === 'auto' && !authorLeads && (explicitCount >= 2 || starts.length >= 2 || (starts.length === 1 && lines.some(line => referenceEvidence(line.text)))));
   if (!numberStyle) lines = splitInlineAuthors(lines);
   const references = [];
   let current = null;
@@ -285,13 +292,27 @@ function parseLines(input, style = 'auto') {
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     if (!line.text) continue;
-    const marker = numberStyle ? numberedStart(line.text) : null;
+    let marker = numberStyle ? numberedStart(line.text) : null;
     let author = numberStyle ? null : authorDateInfo(line.text, lines.slice(index + 1, index + 6));
+    const sameColumn=current&&line.page===current.page&&line.column===current.column;
+    const columnStart=sameColumn?current.x:Math.min(...lines.filter(row=>row.page===line.page&&row.column===line.column&&Number.isFinite(row.x)).map(row=>row.x));
+    const indented=current&&Number.isFinite(line.x)&&Number.isFinite(columnStart)&&line.x-columnStart>Math.max(4,(line.height||10)*0.45);
+    // A hanging continuation can itself look like a surname and year, or begin
+    // with a volume number. Its horizontal position is stronger evidence.
+    if(indented)author=null;
+    if(marker&&current) {
+      const sequential=marker.value===current.number+1;
+      const sameKind=marker.label.replace(/\d+/,'#')===current.label.replace(/\d+/,'#');
+      const nextMarker=lines.slice(index+1).map(row=>numberedStart(row.text)).find(Boolean);
+      const returnsToSequence=nextMarker?.value===current.number+1;
+      if((indented&&!sequential)||(!sequential&&returnsToSequence)||(!sameKind&&!sequential))marker=null;
+    }
     // When authors wrap, a second surname belongs to the unfinished author list.
     if (author && current && !publicationDate(joinLines(current.parts))) author = null;
     if (marker || author) {
       finish();
-      current = { label: marker ? marker.label : author.label, page: line.page, parts: [marker ? marker.body : line.text] };
+      current = { label: marker ? marker.label : author.label, number:marker?.value, page: line.page,
+        x:line.x,column:line.column,parts: [marker ? marker.body : line.text] };
     } else if (current && (!ONLY_LABEL.test(line.text) || publicationDate(line.text))) current.parts.push(line.text);
   }
   finish();
@@ -381,7 +402,7 @@ function textLines(content, pageWidth, pageHeight, pageNumber, { stripLineNumber
         return space + piece.text;
       }).join('').trim();
       if (/^\d{1,4}$/.test(text) && (row.y < pageHeight * 0.08 || row.y > pageHeight * 0.93)) continue;
-      columns[col].push({ text, page: pageNumber, edge: row.y < pageHeight * 0.07 || row.y > pageHeight * 0.94, x: pieces[0].x, y: row.y, column: col });
+      columns[col].push({ text, page: pageNumber, edge: row.y < pageHeight * 0.07 || row.y > pageHeight * 0.94, x: pieces[0].x, y: row.y, height:row.height,column: col });
     }
   }
   const lines = columns.flat();

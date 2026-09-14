@@ -1,18 +1,23 @@
 import * as pdfjs from '../vendor/pdfjs/pdf.mjs';
 import {ReviewPane} from './viewer.mjs';
-import {exportAnnotatedPDF} from './annotation-export.mjs';
+import {exportAnnotatedPDF,prepareSavedPDF} from './annotation-export.mjs';
+import {savePDFFile,digestBytes} from './pdf-file-access.mjs';
+import {upgradeWorkspaceUI} from './workspace-ui.mjs';
 import {extractReferences,parseReferences} from './references.mjs';
 import {extractReferences as extractOriginalReferences,parseReferences as parseOriginalReferences} from './references-original.mjs';
 import {newReview,normalizeReview,normalizeAnnotations,exportReviewText,updateDraft,commitDraft} from './review-state.mjs';
 
+upgradeWorkspaceUI();
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.mjs',import.meta.url).href;
 const $ = id => document.getElementById(id);
 let pdf=null, review=newReview(), storageKey=null, fileName='', loading=false;
 let saveTimer=0, noticeTimer=0, abortRefs=null, documentVersion=0, persistenceFailed=false;
 const sessionReviews=new Map(), unsavedKeys=new Set();
+const activeStorageKeys=new Set();
 const sides={};
 const activeTool={left:'select',right:'select'}, markColor={left:'#f4d75e',right:'#f4d75e'};
-let annotationHistory=[],pendingAnnotation=null;
+let annotationHistory=[],annotationRedo=[],pendingAnnotation=null;
+let currentFileHandle=null,currentFileDigest=null,savingPDF=false,leavingApproved=false;
 for (const side of ['left','right']) sides[side]=new ReviewPane({container:$(`${side}-pdf`),onPageChange:page=>updatePage(side,page),onError:error=>{if(pdf)notice(`A PDF page could not be displayed: ${error.message}`,'error',false);},onAnnotationCreate:record=>createAnnotation(record),onAnnotationSelect:record=>editAnnotation(record),onAnnotationDelete:id=>deleteAnnotation(id)});
 
 function notice(message,kind='',temporary=true) {
@@ -49,7 +54,8 @@ function updateNotebookSummary() {
   const hasText=Boolean(exportReviewText(review));
   $('note-count').textContent=review.notes.length;
   $('draft-page').textContent=review.draft.page?`Left PDF · page ${review.draft.page}`:'Page linked when you type';
-  $('add-note').disabled=!pdf||!review.draft.text.trim();
+  $('draft').disabled=!pdf||savingPDF;
+  $('add-note').disabled=!pdf||savingPDF||!review.draft.text.trim();
   $('all-notes').disabled=!pdf; $('export-notes').disabled=!hasText; $('modal-export').disabled=!hasText;
   $('export-marked-pdf').disabled=!pdf||loading; $('clear-review').disabled=!pdf||loading;
 
@@ -81,25 +87,40 @@ function exportNotes() {
   notice('Review exported. Automatic page markers are excluded.');
 }
 async function fingerprint(bytes) {
-  const hash=await crypto.subtle.digest('SHA-256',bytes);
-  return Array.from(new Uint8Array(hash),n=>n.toString(16).padStart(2,'0')).join('');
+  return digestBytes(bytes);
 }
 function setLoading(value) {
   loading=value;for(const id of ['open-btn','welcome-open','references-btn'])$(id).disabled=value||(id==='references-btn'&&!pdf);
   $('clear-review').disabled=value||!pdf;$('export-marked-pdf').disabled=value||!pdf;
+  for(const side of ['left','right'])$(`${side}-pdf`).inert=savingPDF;
+  updateNotebookSummary();syncAnnotations();
 }
-async function openPDF(bytes,name) {
+const leaveMessage = action => `${action} This will erase this workspace's comments, PDF notes, annotations, and extracted references. Save PDF and export your comments as TXT first if you want to keep them. Saved files on your computer will remain. Continue?`;
+function hasReviewWork() {
+  return !!pdf && !!(exportReviewText(review)||review.annotations.length||review.references.length||review.rawText||pendingAnnotation);
+}
+async function openPDF(bytes,name,{handle=null}={}) {
   if(loading)return;setLoading(true);persist();notice('Opening the PDF on this device…','',false);
   let task, next;
   try {
-    const key='parsec-paper-review:v1:'+await fingerprint(bytes);
-    task=pdfjs.getDocument({data:new Uint8Array(bytes),cMapUrl:new URL('../vendor/pdfjs/cmaps/',import.meta.url).href,cMapPacked:true,standardFontDataUrl:new URL('../vendor/pdfjs/standard_fonts/',import.meta.url).href,wasmUrl:new URL('../vendor/pdfjs/wasm/',import.meta.url).href,isEvalSupported:false,enableXfa:false});
+    const digest=await fingerprint(bytes),key='parsec-paper-review:v1:'+digest;
+    const prepared=await prepareSavedPDF(bytes);
+    task=pdfjs.getDocument({data:new Uint8Array(prepared.bytes),cMapUrl:new URL('../vendor/pdfjs/cmaps/',import.meta.url).href,cMapPacked:true,standardFontDataUrl:new URL('../vendor/pdfjs/standard_fonts/',import.meta.url).href,wasmUrl:new URL('../vendor/pdfjs/wasm/',import.meta.url).href,isEvalSupported:false,enableXfa:false});
     task.onPassword=(updatePassword,reason)=>{const password=prompt(reason===pdfjs.PasswordResponses.INCORRECT_PASSWORD?'Incorrect password. Enter the PDF password again:':'This PDF is password protected. Enter its password:');if(password===null){task.destroy();}else updatePassword(password);};
     next=await task.promise;
     const firstPage=await next.getPage(1);firstPage.getViewport({scale:1});
-    persist(); // Save any edits made to the old document while this PDF was loading.
-    abortRefs?.abort();abortRefs=null;documentVersion++;const old=pdf;
-    sides.left.clear();sides.right.clear();pdf=next;storageKey=key;fileName=name;review=loadReview(key,pdf.numPages);annotationHistory=[];pendingAnnotation=null;
+    // Validate the replacement before asking to discard the current review.
+    if(pdf && !confirm(leaveMessage('Open the selected PDF?'))) {
+      await next.destroy().catch(()=>{});notice('Opening cancelled. Your current review is still here.');return;
+    }
+    if(pdf&&!clearWorkspace()){await next.destroy().catch(()=>{});return;}
+    abortRefs?.abort();abortRefs=null;documentVersion++;
+    sides.left.clear();sides.right.clear();pdf=next;storageKey=key;fileName=name;
+    activeStorageKeys.add(key);
+    const cached=sessionReviews.has(key)||(()=>{try{return !!localStorage.getItem(key);}catch{return false;}})();
+    review=loadReview(key,pdf.numPages);
+    if(!cached)review.annotations=normalizeAnnotations(prepared.annotations,pdf.numPages);
+    annotationHistory=[];annotationRedo=[];pendingAnnotation=null;currentFileHandle=handle;currentFileDigest=digest;leavingApproved=false;
     for(const side of ['left','right']) {
       $(`${side}-pdf`).hidden=false;$(`${side}-total`).textContent=`/ ${pdf.numPages}`;$(`${side}-page`).max=pdf.numPages;
       document.querySelectorAll(`#${side}-toolbar button,#${side}-toolbar input,#${side}-toolbar select`).forEach(el=>el.disabled=false);
@@ -109,9 +130,8 @@ async function openPDF(bytes,name) {
     await Promise.all([sides.left.setDocument(pdf),sides.right.setDocument(pdf)]);
     for(const side of ['left','right'])setAnnotationTool(side,'select');
     syncAnnotations();
-    if(old)await old.destroy();
     $('file-name').textContent=name;$('file-detail').textContent=`${pdf.numPages} pages · Local PDF · Scroll each view independently`;
-    $('footer-state').textContent='Notes stay in this browser. Export a copy when finished.';
+    $('footer-state').textContent='Save PDF and export comments before closing your review.';
     $('draft').disabled=false;$('match-page').disabled=false;$('clear-review').disabled=false;
     $('ref-start').value=1;$('ref-end').value=pdf.numPages;$('ref-start').max=pdf.numPages;$('ref-end').max=pdf.numPages;$('use-ocr').checked=false;
     $('raw-references').value=review.rawText;$('google-opt-in').checked=false;$('ref-search').value='';
@@ -124,10 +144,20 @@ async function openPDF(bytes,name) {
     notice(`Could not open this PDF. ${error?.name==='PasswordException'?'Check its password.':error?.message||'Try another PDF file.'}`,'error',false);
   } finally {setLoading(false);$('file-input').value='';}
 }
-async function loadFile(file) {
+async function loadFile(file,handle=null) {
   if(!file||loading)return;
   if(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf'){notice('Choose a PDF file.','error');return;}
-  try{await openPDF(await file.arrayBuffer(),file.name);}catch(error){notice(`Could not read the selected file: ${error.message}`,'error',false);}
+  try{await openPDF(await file.arrayBuffer(),file.name,{handle});}catch(error){notice(`Could not read the selected file: ${error.message}`,'error',false);}
+}
+async function choosePDF() {
+  if(loading)return;
+  if(typeof window.showOpenFilePicker!=='function'){$('file-input').click();return;}
+  try {
+    const [handle]=await window.showOpenFilePicker({multiple:false,types:[{description:'PDF document',accept:{'application/pdf':['.pdf']}}]});
+    if(handle)await loadFile(await handle.getFile(),handle);
+  } catch(error) {
+    if(error.name!=='AbortError')notice(`Could not use the file picker: ${error.message}. You can drag a PDF into the workspace.`, 'error',false);
+  }
 }
 function renderReferences() {
   const list=$('reference-list');list.replaceChildren();const query=$('ref-search').value.trim().toLowerCase().replace(/^#/,'');
@@ -139,6 +169,13 @@ function renderReferences() {
     const label=document.createElement('div');label.className='reference-label';label.textContent=ref.label;
     const text=document.createElement('p');text.textContent=ref.text;body.append(label,text);
     const actions=document.createElement('div');actions.className='reference-actions';const show=document.createElement('button');show.textContent=`PDF page ${ref.page}`;show.addEventListener('click',()=>{$('references-dialog').close();sides.right.goToPage(ref.page);});actions.append(show);
+    const index=review.references.indexOf(ref);
+    if(index>0){const merge=document.createElement('button');merge.className='merge-reference';merge.textContent='Merge with previous';merge.title=`Join this entry to ${review.references[index-1].label}`;merge.addEventListener('click',()=>{
+      const previous=review.references[index-1];
+      const label=/^(?:\[\d+\]|\(\d+\)|\d+[.)]?)$/.test(ref.label)?ref.label+' ':'';
+      previous.text=(previous.text+' '+label+ref.text).replace(/\s+/g,' ').trim();
+      review.references.splice(index,1);persist();renderReferences();$('reference-status').textContent='Entries merged. Extracting or rebuilding again replaces these manual changes.';
+    });actions.append(merge);}
     if($('google-opt-in').checked){const link=document.createElement('a');link.textContent='Google ↗';link.href='https://www.google.com/search?q='+encodeURIComponent(ref.text);link.target='_blank';link.rel='noopener noreferrer';link.referrerPolicy='no-referrer';actions.append(link);}
     card.append(body,actions);list.append(card);
   }
@@ -171,7 +208,7 @@ async function runExtraction() {
   finally {if(abortRefs===controller){abortRefs=null;setReferenceBusy(false);}}
 }
 
-const toolHints={select:'Select text or a mark',highlight:'Select text; drag over scanned text',note:'Click a page to place a note',ellipse:'Drag a circle or ellipse',rectangle:'Drag a rectangle',erase:'Click a mark to remove it'};
+const toolHints={select:'Select text or a mark',hand:'Drag to move around the PDF',highlight:'Select text; drag over scanned text',note:'Click a page to place a note',ellipse:'Drag a circle or ellipse',rectangle:'Drag a rectangle',erase:'Click a mark to remove it'};
 function setAnnotationTool(side,tool) {
   activeTool[side]=tool;sides[side].setTool(tool,markColor[side]);
   for(const button of document.querySelectorAll(`[data-side="${side}"][data-annotation-tool]`))button.setAttribute('aria-pressed',String(button.dataset.annotationTool===tool));
@@ -180,24 +217,26 @@ function setAnnotationTool(side,tool) {
 function syncAnnotations() {
   for(const side of ['left','right']) {
     sides[side].setAnnotations(review.annotations);
-    document.querySelectorAll(`#${side}-annotations button,#${side}-annotations input`).forEach(el=>el.disabled=!pdf);
-    $(`${side}-undo`).disabled=!pdf||!annotationHistory.length;
+    document.querySelectorAll(`#${side}-annotations button,#${side}-annotations input`).forEach(el=>el.disabled=!pdf||savingPDF);
+    $(`${side}-undo`).disabled=!pdf||savingPDF||!annotationHistory.length;
+    $(`${side}-redo`).disabled=!pdf||savingPDF||!annotationRedo.length;
   }
 }
 function changeAnnotations(next) {
-  if(!pdf)return;
+  if(!pdf||savingPDF)return;
   annotationHistory.push(normalizeAnnotations(review.annotations,pdf.numPages));
   if(annotationHistory.length>50)annotationHistory.shift();
+  annotationRedo=[];
   review.annotations=normalizeAnnotations(next,pdf.numPages);persist();syncAnnotations();
 }
 function createAnnotation(record) {
-  if(!pdf||!record)return;
+  if(!pdf||savingPDF||!record)return;
   const mark={...record,id:crypto.randomUUID(),text:record.text||''};
   if(mark.type==='note')editAnnotation(mark,true);
   else changeAnnotations([...review.annotations,mark]);
 }
 function editAnnotation(record,isNew=false) {
-  if(!pdf||!record)return;
+  if(!pdf||savingPDF||!record)return;
   pendingAnnotation={record:{...record,rects:record.rects.map(r=>({...r}))},isNew,version:documentVersion};
   $('annotation-title').textContent={highlight:'Highlight',note:'PDF note',ellipse:'Circle / ellipse',rectangle:'Rectangle'}[record.type]||'PDF annotation';
   $('annotation-page').textContent=`PDF page ${record.page}`;
@@ -208,29 +247,44 @@ function deleteAnnotation(id) {
   if(pdf&&review.annotations.some(mark=>mark.id===id))changeAnnotations(review.annotations.filter(mark=>mark.id!==id));
 }
 function undoAnnotation() {
-  if(!pdf||!annotationHistory.length)return;
+  if(!pdf||savingPDF||!annotationHistory.length)return;
+  annotationRedo.push(normalizeAnnotations(review.annotations,pdf.numPages));
   review.annotations=annotationHistory.pop();persist();syncAnnotations();
 }
-async function downloadMarkedPDF() {
-  if(!pdf||loading)return;persist();setLoading(true);
-  const current=pdf,marks=normalizeAnnotations(review.annotations,pdf.numPages);
-  notice('Preparing the marked PDF on this device…','',false);
-  try {
-    const output=await exportAnnotatedPDF(await current.getData(),current,marks);
-    const url=URL.createObjectURL(new Blob([output],{type:'application/pdf'}));
-    const anchor=document.createElement('a');anchor.href=url;anchor.download=(fileName.replace(/\.pdf$/i,'').replace(/[^a-z0-9._-]/gi,'-')||'paper')+'-marked.pdf';
-    document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
-    notice('Marked PDF exported. Your original file is unchanged.');
-  } catch(error){notice(`Could not export the marked PDF: ${error.message}`,'error',false);}
-  finally{setLoading(false);}
+function redoAnnotation() {
+  if(!pdf||savingPDF||!annotationRedo.length)return;
+  annotationHistory.push(normalizeAnnotations(review.annotations,pdf.numPages));
+  review.annotations=annotationRedo.pop();persist();syncAnnotations();
 }
-async function removePDFAndNotes() {
-  if(!pdf||!storageKey||loading)return;
-  if(!confirm('Remove this PDF from the workspace and delete its saved comments, annotations, and references? Export copies first if you want to keep them. Your original PDF file will stay on your computer.'))return;
+async function downloadMarkedPDF() {
+  if(!pdf||loading)return;persist();savingPDF=true;setLoading(true);
+  const current=pdf,marks=normalizeAnnotations(review.annotations,pdf.numPages);
+  notice('Saving the PDF on this device…','',false);
+  try {
+    const result=await savePDFFile({handle:currentFileHandle,expectedDigest:currentFileDigest,name:fileName||'paper.pdf',
+      makeBytes:async()=>exportAnnotatedPDF(await current.getData(),current,marks)});
+    if(pdf!==current)return; // A confirmed browser exit may finish during a write.
+    if(result.mode==='file') {
+      currentFileHandle=result.handle;currentFileDigest=result.digest;fileName=result.name;$('file-name').textContent=fileName;
+      const previousKey=storageKey;storageKey='parsec-paper-review:v1:'+result.digest;activeStorageKeys.add(storageKey);persist();
+      if(storageKey!==previousKey&&!persistenceFailed){try{localStorage.removeItem(previousKey);sessionReviews.delete(previousKey);unsavedKeys.delete(previousKey);activeStorageKeys.delete(previousKey);}catch{}}
+      notice(`Saved PDF annotations to ${result.name}. Notebook comments are separate; use Export .txt to keep them.`,'',false);
+    } else {
+      const url=URL.createObjectURL(new Blob([result.bytes],{type:'application/pdf'}));
+      const anchor=document.createElement('a');anchor.href=url;anchor.download=(fileName.replace(/\.pdf$/i,'').replace(/[^a-z0-9._-]/gi,'-')||'paper')+'-reviewed.pdf';
+      document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+      notice('Saved PDF copy sent to your browser’s downloads. This browser cannot write back to the original file. Export .txt separately to keep notebook comments.','',false);
+    }
+  } catch(error){notice(error.name==='AbortError'?'Save cancelled. Your workspace is still open.':`Could not save the PDF: ${error.message}`,error.name==='AbortError'?'':'error',false);}
+  finally{savingPDF=false;setLoading(false);}
+}
+function clearWorkspace() {
+  if(!pdf||!storageKey)return true;
+  try{for(const key of activeStorageKeys)localStorage.removeItem(key);}catch{persist();notice('The browser would not clear the saved review. Your review remains open.','error',false);return false;}
   clearTimeout(saveTimer);
-  try{localStorage.removeItem(storageKey);}catch{notice('The browser would not clear the saved review. Clear this site’s data in browser settings to remove it.','error',false);$('privacy-dialog').close();return;}
   const old=pdf;documentVersion++;abortRefs?.abort();abortRefs=null;sessionReviews.delete(storageKey);unsavedKeys.delete(storageKey);
-  pdf=null;storageKey=null;fileName='';review=newReview();annotationHistory=[];pendingAnnotation=null;persistenceFailed=false;
+  for(const key of activeStorageKeys){sessionReviews.delete(key);unsavedKeys.delete(key);}activeStorageKeys.clear();
+  pdf=null;storageKey=null;fileName='';review=newReview();annotationHistory=[];annotationRedo=[];pendingAnnotation=null;persistenceFailed=false;currentFileHandle=null;currentFileDigest=null;
   for(const side of ['left','right']) {
     sides[side].clear();sides[side].setAnnotations([]);setAnnotationTool(side,'select');$(`${side}-pdf`).hidden=true;
     $(`${side}-total`).textContent='/ —';$(`${side}-page`).value=1;
@@ -240,12 +294,17 @@ async function removePDFAndNotes() {
   $('file-name').textContent='Keep the paper in view.';$('file-detail').textContent='Read, cross-check, and write your review in one place.';
   $('footer-state').textContent='Your PDF stays on this device.';$('raw-references').value='';$('annotation-text').value='';$('comment-list').replaceChildren();
   $('ref-search').value='';$('google-opt-in').checked=false;$('file-input').value='';
-  renderNotebook();renderReferences();syncAnnotations();setReferenceBusy(false);setLoading(false);savingLabel('Open a paper to begin');$('privacy-dialog').close();
-  await old.destroy().catch(()=>{});
-  notice('PDF removed. Its saved comments, annotations, and references have been deleted from this app.');
+  renderNotebook();renderReferences();syncAnnotations();setReferenceBusy(false);setLoading(loading);savingLabel('Open a paper to begin');
+  for(const id of ['privacy-dialog','annotation-dialog','comments-dialog','references-dialog'])$(id).close();
+  old.destroy().catch(()=>{});
+  return true;
+}
+function removePDFAndNotes() {
+  if(!pdf||!storageKey||loading)return;
+  if(confirm(leaveMessage('Close this PDF?'))&&clearWorkspace())notice('PDF closed. This workspace’s comments, annotations, and references have been erased.');
 }
 
-for(const id of ['open-btn','welcome-open'])$(id).addEventListener('click',()=>$('file-input').click());
+for(const id of ['open-btn','welcome-open'])$(id).addEventListener('click',choosePDF);
 $('file-input').addEventListener('change',event=>loadFile(event.target.files[0]));
 document.addEventListener('dragover',event=>{if(event.dataTransfer.types.includes('Files'))event.preventDefault();});
 document.addEventListener('drop',event=>{if(!event.dataTransfer.files.length)return;event.preventDefault();if(!document.querySelector('dialog[open]'))loadFile(event.dataTransfer.files[0]);});
@@ -254,6 +313,12 @@ for(const side of ['left','right']) {
   document.querySelector(`[data-next="${side}"]`).addEventListener('click',()=>sides[side].goToPage(sides[side].currentPage+1));
   $(`${side}-page`).addEventListener('change',event=>{sides[side].goToPage(event.target.value);event.target.value=sides[side].currentPage;});
   $(`${side}-zoom`).addEventListener('change',event=>sides[side].setZoom(event.target.value));
+  for(const direction of ['in','out'])$(`${side}-zoom-${direction}`).addEventListener('click',()=>{
+    const zoom=sides[side].zoomBy(direction==='in'?1:-1),select=$(`${side}-zoom`);
+    let option=select.querySelector('[data-custom-zoom]');
+    if(!option){option=document.createElement('option');option.dataset.customZoom='true';select.append(option);}
+    option.value=String(zoom);option.textContent=`${Math.round(zoom*100)}%`;select.value=String(zoom);
+  });
 }
 $('match-page').addEventListener('click',()=>sides.right.goToPage(sides.left.currentPage));
 $('draft').addEventListener('input',()=>{updateDraft(review,$('draft').value,sides.left.currentPage);scheduleSave();updateNotebookSummary();});
@@ -275,6 +340,7 @@ for(const button of document.querySelectorAll('button[data-annotation-tool][data
 for(const side of ['left','right']) {
   $(`${side}-mark-color`).addEventListener('input',event=>{markColor[side]=event.target.value;sides[side].setTool(activeTool[side],markColor[side]);});
   $(`${side}-undo`).addEventListener('click',undoAnnotation);
+  $(`${side}-redo`).addEventListener('click',redoAnnotation);
 }
 $('annotation-save').addEventListener('click',()=>{
   if(!pendingAnnotation||!pdf||pendingAnnotation.version!==documentVersion)return;
@@ -288,8 +354,22 @@ $('annotation-dialog').addEventListener('close',()=>{pendingAnnotation=null;$('a
 $('export-marked-pdf').addEventListener('click',downloadMarkedPDF);
 $('clear-review').addEventListener('click',removePDFAndNotes);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)persist();});
-window.addEventListener('pagehide',()=>{persist();abortRefs?.abort();});
-window.addEventListener('beforeunload',event=>{persist();if([...unsavedKeys].some(key=>exportReviewText(sessionReviews.get(key)||newReview())||(sessionReviews.get(key)?.annotations.length||0))){event.preventDefault();event.returnValue='';}});
+window.addEventListener('pagehide',()=>{clearWorkspace();abortRefs?.abort();});
+window.addEventListener('beforeunload',event=>{persist();if(!leavingApproved&&(savingPDF||hasReviewWork())){event.preventDefault();event.returnValue='';}});
+for(const link of document.querySelectorAll('.back-link,.brand-icon'))link.addEventListener('click',event=>{
+  if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||event.button>0||link.getAttribute('href')?.startsWith('#'))return;
+  if(loading){event.preventDefault();notice('Wait for the current file operation to finish before leaving.','',false);return;}
+  if(pdf&&(!confirm(leaveMessage('Return to Tools?'))||!clearWorkspace())){event.preventDefault();return;}
+  leavingApproved=true;
+});
+document.addEventListener('keydown',event=>{
+  if(!(event.ctrlKey||event.metaKey)||event.altKey)return;
+  const editing=event.target.closest?.('textarea,input,[contenteditable="true"]');
+  if(event.key.toLowerCase()==='s'&&pdf){event.preventDefault();if(!document.querySelector('dialog[open]'))downloadMarkedPDF();}
+  if(editing||document.querySelector('dialog[open]'))return;
+  if(event.key.toLowerCase()==='z'){event.preventDefault();event.shiftKey?redoAnnotation():undoAnnotation();}
+  else if(event.key.toLowerCase()==='y'){event.preventDefault();redoAnnotation();}
+});
 
 function divider(id,container,axis,initial,min,max) {
   const handle=$(id);let value=initial;

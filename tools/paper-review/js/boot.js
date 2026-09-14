@@ -2,7 +2,7 @@ if (location.protocol === 'file:') {
   const status = document.getElementById('status');
   status.hidden = false;
   status.classList.add('error');
-  status.textContent = 'To use this app locally, run start_local.bat (Windows) or python3 start_local.py from the paper-review folder. Then open the local address shown. See START-HERE.txt.';
+  status.textContent = 'You opened a downloaded HTML file. Publish the app files to GitHub Pages, then open https://parsecneuro.github.io/tools/paper-review/. The published website does not need Python or a BAT file. See START-HERE.txt for upload instructions.';
 } else {
   setTimeout(() => {
     if (window.paperReviewReady) return;

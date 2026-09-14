@@ -21,6 +21,11 @@
 
 .review-pdf-stack:empty { display: none; }
 
+.pdf-scroll[data-pan-tool="hand"] { cursor: grab; touch-action: none; }
+.pdf-scroll[data-pan-tool="hand"] .review-pdf-text { user-select: none; -webkit-user-select: none; }
+.pdf-scroll[data-pan-tool="hand"] .review-pdf-text span { cursor: grab; }
+.pdf-scroll[data-panning="true"], .pdf-scroll[data-panning="true"] .review-pdf-text span { cursor: grabbing; }
+
 .review-pdf-page {
   position: relative;
   flex: 0 0 auto;

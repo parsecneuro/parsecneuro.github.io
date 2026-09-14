@@ -1,5 +1,5 @@
 /** Annotation coordinates are fractions of the displayed PDF page, independent of zoom. */
-export const ANNOTATION_TOOLS = new Set(['select', 'highlight', 'note', 'ellipse', 'rectangle', 'erase']);
+export const ANNOTATION_TOOLS = new Set(['select', 'hand', 'highlight', 'note', 'ellipse', 'rectangle', 'erase']);
 export const ANNOTATION_TYPES = new Set(['highlight', 'note', 'ellipse', 'rectangle']);
 
 export function clamp(value, minimum = 0, maximum = 1) {

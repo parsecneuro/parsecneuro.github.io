@@ -1,4 +1,37 @@
-import { PDFDocument, PDFName, PDFHexString } from '../vendor/pdf-lib/pdf-lib.mjs';
+import { PDFDocument, PDFName, PDFHexString, PDFArray, PDFDict } from '../vendor/pdf-lib/pdf-lib.mjs';
+import { normalizeAnnotations } from './review-state.mjs';
+
+const REVIEW_KEY = PDFName.of('ParsecReviewAnnotations');
+const MANAGED_KEY = PDFName.of('ParsecReviewMark');
+function removeManagedMarks(document) {
+  for (const page of document.getPages()) {
+    const entries = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+    if (!entries) continue;
+    for (let index = entries.size() - 1; index >= 0; index--) {
+      const entry = document.context.lookup(entries.get(index));
+      if (entry instanceof PDFDict && entry.get(MANAGED_KEY)?.toString() === 'true') entries.remove(index);
+    }
+  }
+}
+
+/** Restore only our own saved marks as editable overlays; other PDF marks stay intact. */
+export async function prepareSavedPDF(originalBytes) {
+  try {
+    const document = await PDFDocument.load(originalBytes, { updateMetadata: false });
+    const data = document.catalog.get(REVIEW_KEY);
+    if (!(data instanceof PDFHexString)) return { bytes: originalBytes, annotations: [] };
+    const value = JSON.parse(data.decodeText());
+    if (value.version !== 1 || !Array.isArray(value.annotations)) return { bytes: originalBytes, annotations: [] };
+    const annotations = normalizeAnnotations(value.annotations, document.getPageCount());
+    if (annotations.length !== value.annotations.length) return { bytes: originalBytes, annotations: [] };
+    removeManagedMarks(document);
+    document.catalog.delete(REVIEW_KEY);
+    return { bytes: await document.save({ useObjectStreams: true, updateFieldAppearances: false }), annotations };
+  } catch {
+    // PDF.js may still read files that pdf-lib cannot, including encrypted PDFs.
+    return { bytes: originalBytes, annotations: [] };
+  }
+}
 
 const SUBTYPES = { highlight: 'Highlight', note: 'Text', ellipse: 'Circle', rectangle: 'Square' };
 const number = value => Number(value.toFixed(5));
@@ -95,6 +128,7 @@ export async function exportAnnotatedPDF(originalBytes, pdfjsDocument, annotatio
   if (pages.length !== pdfjsDocument.numPages) throw new Error('The PDF has changed. Reopen it before exporting annotations.');
   const viewports = new Map();
   const { context } = document;
+  removeManagedMarks(document);
   for (const mark of annotations) {
     if (!SUBTYPES[mark?.type]) throw new Error('An annotation type is not supported for PDF export.');
     if (!Number.isInteger(mark.page) || mark.page < 1 || mark.page > pages.length) throw new Error('An annotation refers to a missing PDF page.');
@@ -116,6 +150,7 @@ export async function exportAnnotatedPDF(originalBytes, pdfjsDocument, annotatio
       BS: { Type: 'Border', W: mark.type === 'highlight' ? 0 : 1.5 / userUnit, S: 'S' },
       AP: { N: appearance(context, mark.type, bounds, rects, color, userUnit) },
     });
+    annotation.set(MANAGED_KEY, context.obj(true));
     if (mark.id) annotation.set(PDFName.of('NM'), PDFHexString.fromText(String(mark.id)));
     if (mark.text) annotation.set(PDFName.of('Contents'), PDFHexString.fromText(String(mark.text)));
     if (mark.type === 'highlight') {
@@ -126,5 +161,8 @@ export async function exportAnnotatedPDF(originalBytes, pdfjsDocument, annotatio
     }
     page.node.addAnnot(context.register(annotation));
   }
+  // Notebook comments/private page markers are deliberately not embedded.
+  document.catalog.set(REVIEW_KEY, PDFHexString.fromText(JSON.stringify({ version: 1,
+    annotations: normalizeAnnotations(annotations, pages.length) })));
   return document.save({ useObjectStreams: true, addDefaultPage: false, updateFieldAppearances: false });
 }

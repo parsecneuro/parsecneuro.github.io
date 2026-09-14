@@ -6,6 +6,27 @@
 
   const apps = ['nestapp', 'eeg-cap-viewer', 'paper-review'];
   const script = document.currentScript;
+  // Upgrade older Tools catalogues without replacing the owner's HTML or config.
+  try {
+    const source = new URL(script.src);
+    const suffix = '/assets/js/tool-counter.js';
+    const root = source.pathname.endsWith(suffix) ? source.pathname.slice(0, -suffix.length) : null;
+    if (root !== null && source.origin === window.location.origin &&
+        [`${root}/tools/`, `${root}/tools/index.html`].includes(window.location.pathname)) {
+      for (const card of document.querySelectorAll('.tool-card')) {
+        if (card.querySelector('[data-tool-count]')) continue;
+        const link = new URL(card.getAttribute('href'), source.origin + root + '/tools/');
+        const name = link.origin === source.origin && apps.find(value => link.pathname.startsWith(`${root}/tools/${value}/`));
+        const body = card.querySelector('.tool-card-body');
+        if (!name || !body) continue;
+        const badge = document.createElement('span');
+        badge.className = 'tool-count'; badge.dataset.toolCount = name;
+        const value = document.createElement('span'); value.dataset.countValue = ''; value.textContent = '—';
+        badge.append(value, document.createTextNode(name === 'nestapp' ? ' page visits' : ' opens'));
+        body.append(badge);
+      }
+    }
+  } catch (_) { /* Existing badges still work if a custom card cannot be read. */ }
   const counters = Array.from(document.querySelectorAll('[data-tool-count]'))
     .filter(node => apps.includes(node.dataset.toolCount));
   let endpoint;
