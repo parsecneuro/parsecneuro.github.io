@@ -1,0 +1,144 @@
+TOOLS OPENING COUNTERS 1.0
+
+STATUS
+The code is prepared and locally tested. It is not deployed or connected to
+a live counter database. The website stays on GitHub Pages. One small
+Cloudflare Worker and D1 database hold the shared totals.
+Until connected, the badges show a dash, not a fabricated zero.
+
+WHAT YOU GET
+Small badges at the bottom right of all three Tools cards, using the site's
+existing background and text colors. The totals are shared across visitors.
+EEG Cap Viewer and Paper Review show app page openings. NESTApp shows visits
+to its website page; the website cannot see launches of its MATLAB download.
+Bookmarks, direct URLs, and links from elsewhere count because the script
+runs on the individual app pages. Visiting Tools or EEG's about page does
+not increase app totals. Reloading an app does count again. Returning to a
+page from the browser's back/forward cache does not count a second time.
+This measures openings, not unique people, reviews completed, or time used.
+The totals start when you enable the counter; no past visits are recovered.
+
+OWNER RESET
+Tools > Manage counters opens tools/counter-admin/index.html. You can reset
+one app or all three. Enter your private admin token and confirm the reset.
+The service checks the token; hiding a button is not the security measure.
+The page does not store the token and clears its input before sending it.
+Keep it in your password manager, never in the public website or GitHub.
+Use Cloudflare's secret setting again if you need to rotate a lost token.
+
+ONE-TIME SERVICE SETUP
+You need your own Cloudflare account and a current Node.js 24 installation.
+Review the provider's current plan and limits before deploying. This package
+does not subscribe to a plan or create any external resources for you.
+
+1. Extract this ZIP outside your website repository. Open a terminal in its
+   counter-service folder and run:
+
+   npm install
+   npx wrangler login
+   npx wrangler d1 create parsec-tool-counter
+
+2. Open counter-service/wrangler.jsonc. Replace
+   REPLACE_WITH_YOUR_D1_DATABASE_ID with the database ID from step 1.
+   Keep its binding name DB. If Wrangler offers to add another database
+   binding, decline and replace the supplied placeholder instead.
+   ALLOWED_ORIGINS already contains https://parsecneuro.github.io.
+   If your website uses another domain, replace it with that exact origin
+   (HTTPS plus hostname, with no trailing slash or page path).
+
+3. In counter-service run:
+
+   npm run db:init
+   npm run deploy
+   npx wrangler secret put ADMIN_TOKEN
+
+   At the secret prompt, paste a randomly generated password-manager token
+   of 32-256 printable ASCII characters, with no spaces. Save it in your password manager.
+   Reset requests fail closed until this secret is configured. Wrangler
+   deploys the secret when it is set. Copy the deployed Worker address,
+   for example https://parsec-tool-counter.YOUR-SUBDOMAIN.workers.dev.
+   Do not put the token into wrangler.jsonc or the site's JavaScript.
+
+INSTALL INTO YOUR CURRENT WEBSITE
+The installer adds counter assets and makes small HTML additions. It
+preserves your current app scripts and Tools card content. All three app
+cards and entry pages must already exist, including Paper Review 0.3 or Alpha 1.
+It stops before writing if a required page/card is missing.
+
+4. Make a backup or commit your current website changes first. In the root
+   of this extracted package, run the following as ONE LINE, replacing the
+   two example paths/addresses with yours:
+
+   python3 setup-counters.py "/path/to/your/website" --endpoint "https://parsec-tool-counter.YOUR-SUBDOMAIN.workers.dev"
+
+   On Windows use python instead of python3. Quote any folder path with
+   spaces. The selected website folder must contain assets/ and tools/.
+   For a custom domain add --site-origin "https://your-domain.example" and
+   also use that origin in the Worker's ALLOWED_ORIGINS setting.
+   GitHub project sites work too: site-origin is still just the origin,
+   not the repository path. Script paths are relative to your site root.
+
+   The installer configures only the precise counter origin in existing
+   Content Security Policies, including Paper Review and the reset page.
+   It can be run again safely to change the counter address. Omitting
+   --endpoint disconnects the counters and leaves badges showing a dash.
+
+5. Review the changed files, then commit and push your website changes using
+   the normal GitHub Pages workflow. Only the changed website files need
+   to be published, not this package's counter-service or setup script.
+   The installer adds:
+     assets/css/tool-counter.css
+     assets/js/tool-counter-config.js
+     assets/js/tool-counter.js
+     tools/counter-admin/index.html, admin.js, admin.css
+   It updates tools/index.html and all three tools/<app>/index.html files,
+   plus Paper Review's local-start guide if present.
+
+CHECK IT ONCE LIVE
+Open the Tools page and note the counts. Open an actual app directly in a
+new tab (or use a bookmark), then return to Tools: its count should increase.
+Check EEG's /tools/eeg-cap-viewer/index.html, not its /about.html page.
+Use Manage counters to reset one count with your admin token. Other counts
+should stay unchanged. Reloads count as openings. Service failure or blocked
+requests display a dash and never prevent the apps from working.
+
+PRIVACY AND LIMITS
+The visit request has only a fixed app ID and a random ID unique to that
+page load. The same random ID is reused for a few short retries so a network
+retry does not add another opening. No cookies, visitor ID, browser storage,
+PDF filenames, contents, notes, references, coordinates, or URL queries are
+read by the counter client. Counter requests omit credentials and referrers.
+The service stores totals and recent random request IDs with receipt times,
+not IP addresses or browser fingerprints. Request IDs normally expire after
+24-48 hours through scheduled cleanup. Reset preserves recent IDs so delayed
+retries do not restore visits that were already counted before the reset.
+Worker application logging is disabled in the supplied configuration.
+Like any website service, its hosting provider handles connection metadata
+under its own policies. No manuscript content is uploaded to that provider.
+Local previews and other site origins do not send counter requests.
+
+These are approximate opening counts: JavaScript blockers, offline visits,
+or an unavailable service can miss openings; automated requests can inflate
+them. Origin restrictions prevent casual use from other websites, but are
+not proof of a human visitor. There is no claim of bot-proof analytics.
+
+FUTURE TOOLS
+This update registers your current three apps. Add the new app ID consistently
+to the client, admin page, installer, Worker allowlist, and database schema
+when adding another tool; redeploy the service and instrument its entry page.
+
+OFFICIAL SETUP REFERENCES
+GitHub Pages static hosting:
+https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages
+Cloudflare D1 setup:
+https://developers.cloudflare.com/d1/get-started/
+Worker secret storage:
+https://developers.cloudflare.com/workers/configuration/secrets/
+
+VALIDATION
+Service logic was tested locally using real SQLite statements and a D1 API
+adapter. Client behavior was tested with browser-API/fetch fixtures. The
+installer was checked against the available website and Paper Review pages.
+The package has not been tested against a deployed Cloudflare service or in
+a graphical browser in this environment. Perform the live check above after
+deployment.

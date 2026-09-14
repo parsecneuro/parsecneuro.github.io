@@ -7,6 +7,11 @@
   <meta name="description" content="Interactive browser-based 3D viewer for international 10-20, 10-10, 10-5 and other EEG montage templates, custom coordinates, and cap-to-cap comparison.">
   <title>Interactive 3D EEG Cap Viewer</title>
   <link rel="stylesheet" href="./css/app.css">
+<!-- tool-counter:head -->
+<link rel="stylesheet" href="../../assets/css/tool-counter.css">
+<script defer src="../../assets/js/tool-counter-config.js"></script>
+<script defer src="../../assets/js/tool-counter.js"></script>
+<!-- /tool-counter:head -->
 </head>
 <body>
   <div id="app-shell">
@@ -306,7 +311,8 @@
         <footer class="viewer-footer">
           <p>EEG coordinates and CSV contents are processed locally in your browser and are not uploaded or stored by this website.</p>
           <p>Template scalp: MNE-Python fsaverage head surface. Native MNI/fsaverage coordinates are used directly; supplied or estimated template coordinates for other source frames are identified separately and are not subject-specific MRI coregistration. See <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">third-party notices</a>.</p>
-        </footer>
+        <!-- tool-counter:info --><p class="tool-counter-disclosure">When enabled, the site counter records page openings using an app identifier and a random request ID. Files and their contents are not sent.</p><!-- /tool-counter:info -->
+</footer>
       </section>
     </main>
 
