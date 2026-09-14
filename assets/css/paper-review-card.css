@@ -1,0 +1,52 @@
+.tool-card-paper {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto;
+  min-height: 340px;
+}
+.paper-review-mini {
+  display: grid;
+  align-items: center;
+  padding: 26px;
+  border-bottom: 0;
+  border-right: 1px solid var(--line);
+  background: radial-gradient(ellipse at 20% 20%, color-mix(in srgb, var(--accent-2) 13%, transparent), transparent 26rem), var(--surface-soft);
+}
+.paper-review-mini-window {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface-strong);
+  box-shadow: 0 15px 38px rgba(0, 0, 0, .22);
+  transform: perspective(950px) rotateY(2deg) rotateX(1deg);
+  transition: transform 350ms ease;
+}
+.tool-card-paper:hover .paper-review-mini-window { transform: perspective(950px) rotateY(0) rotateX(0); }
+.paper-review-mini-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; color: var(--text-soft); font-size: 9px; font-weight: 700; border-bottom: 1px solid var(--line); }
+.paper-review-mini-bar span:first-child { display: flex; align-items: center; gap: 7px; }
+.paper-review-mini-bar i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.paper-review-mini-bar span:last-child { color: var(--text-faint); font-size: 8px; }
+.paper-review-mini-scene { width: 100%; display: block; }
+.pr-mini-desk { fill: #e2e7e8; }
+.pr-mini-paper { fill: #fffefa; stroke: #d3dbd9; stroke-width: .7; }
+.pr-mini-ink { fill: #304b49; }
+.pr-mini-muted { fill: #9ba7a2; }
+.pr-mini-lines { stroke: #b9c2bd; stroke-width: 2; stroke-linecap: round; }
+.pr-mini-highlight { fill: #e1efe6; }
+.pr-mini-divider { stroke: #bdceca; stroke-width: 2; }
+.pr-mini-page { fill: #8b9d95; font: 8px system-ui, sans-serif; }
+.pr-mini-caption { fill: #425b52; font: 700 9px system-ui, sans-serif; }
+.pr-mini-axis { fill: none; stroke: #b6c9c1; stroke-width: 1; }
+.pr-mini-chart { fill: none; stroke: #47816e; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.pr-mini-dot { fill: #47816e; }
+.pr-mini-note { fill: #f8f4e9; stroke: #ded6c2; }
+.pr-mini-note-title { fill: #998666; font: 700 7px system-ui, sans-serif; letter-spacing: 1px; }
+.pr-mini-note-text { fill: #4b5148; font: 9px system-ui, sans-serif; }
+.pr-mini-badge { fill: #e8e3d4; }
+.pr-mini-badge-text { fill: #77674e; font: 7px system-ui, sans-serif; }
+@media (max-width: 820px) {
+  .tool-card-paper { grid-template-columns: 1fr; grid-template-rows: 270px 1fr; min-height: 580px; }
+  .paper-review-mini { border-right: 0; border-bottom: 1px solid var(--line); padding: 18px; }
+  .paper-review-mini-window { width: min(100%, 440px); margin: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .paper-review-mini-window { transition: none; transform: none; } }

@@ -1,0 +1,27 @@
+.tool-count {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: .35em;
+  margin-top: 14px;
+  padding: 4px 9px;
+  border: 1px solid var(--line, #34414a);
+  border-radius: 999px;
+  background: var(--surface-soft, #18242d);
+  color: var(--text-soft, #bdc7cf);
+  font: 500 11px/1.35 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+.tool-counter-info {
+  margin: 22px 0 0;
+  color: var(--text-soft, #a9b5c0);
+  font: 400 12px/1.6 system-ui, sans-serif;
+}
+.tool-counter-info a { color: inherit; text-underline-offset: 3px; }
+.tool-counter-disclosure {
+  color: inherit;
+  font: 400 11px/1.6 system-ui, sans-serif;
+  opacity: .85;
+}

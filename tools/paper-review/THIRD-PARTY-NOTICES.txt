@@ -1,0 +1,20 @@
+Paper Review 1.0.0-alpha.1
+
+PDF viewing: Mozilla PDF.js 5.6.205, Apache License 2.0.
+Project: https://github.com/mozilla/pdf.js
+Documentation: https://mozilla.github.io/pdf.js/examples/
+License: vendor/pdfjs/LICENSE
+Additional font, CMap, and WebAssembly notices remain in their vendor folders.
+
+Local OCR: Tesseract.js and tesseract.js-core, Apache License 2.0.
+Project: https://github.com/naptha/tesseract.js
+Local installation: https://github.com/naptha/tesseract.js/blob/master/docs/local-installation.md
+Runtime versions, model attribution, and licenses: vendor/ocr/NOTICE.txt,
+vendor/ocr/NOTICE-english-model.txt, and accompanying license files.
+
+These third-party components are bundled with the application. Application
+code uses local paths; it does not load them from a CDN at runtime.
+
+Native PDF annotation export: pdf-lib 1.17.1, MIT License.
+Project: https://github.com/Hopding/pdf-lib
+License: vendor/pdf-lib/LICENSE

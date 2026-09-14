@@ -517,42 +517,53 @@ window.NEUROFOLIO_CONTENT = {
   posts: [
     {
       id: "sample-biological-dose",
-      sample: true,
+      sample: false,
       kind: "Research note",
       date: "2026-07-28",
       title: "The same electric field is not necessarily the same biological dose",
       excerpt:
-        "Field magnitude is only one part of the intervention. Orientation, morphology, ongoing activity, membrane time scales, and connectivity can change what that field means to a circuit. Differences in brain anatomy mean that the same delivered current can leave some participants below a target electric-field threshold. Dose selection should consider whether each participant receives at least the intended minimum field.",
-      prompt: "Possible expansion: define a biological-dose framework that separates delivered field, cellular polarization, network response, and behavioral outcome.",
+        "Field magnitude is only one part of the intervention. Orientation, morphology, ongoing activity, membrane time scales, connectivity and other factors can change what that field means to a circuit. Differences in brain anatomy mean that the same delivered current can leave some participants below a target electric-field threshold. Dose selection should consider whether each participant receives at least the intended minimum field.",
+      prompt: "Goal/Plan: To define a biological-dose framework that separates delivered field, cellular polarization, network response, and behavioral outcome.",
       url: "",
       tags: ["Electric-field modeling", "Precision stimulation"]
     },
     {
       id: "sample-delay-control",
-      sample: true,
+      sample: false,
       kind: "Open question",
       date: "2026-07-05",
       title: "Can network delay become a parameter for personalized stimulation?",
       excerpt:
         "Most stimulation protocols tune frequency and amplitude. Yet conduction delay changes phase relations and may determine whether two regions communicate, ignore one another, or reverse sender–receiver roles.",
-      prompt: "Possible expansion: combine diffusion MRI, tract length, and individual alpha frequency to estimate a subject-specific phase offset.",
+      prompt: "Goal/Plan: To combine diffusion MRI, tract length, and individual alpha frequency to estimate a subject-specific phase offset.",
       url: "",
       tags: ["Delay", "Phase", "Personalization"]
     },
-    
     {
-      id: "sample-heterogeneity",
-      sample: true,
-      kind: "Concept sketch",
-      date: "2026-05-22",
-      title: "When should heterogeneity be preserved rather than averaged away?",
+      id: "sample-closed-loop",
+      sample: false,
+      kind: "Research Note",
+      date: "2026-08-10",
+      title: "How to close the loop between stimulation and brain state?",
       excerpt:
-        "Variability can be measurement noise, a nuisance parameter, a source of resilience, or the very mechanism that makes selective control possible. The scientific task is to distinguish these cases.",
-      prompt: "Possible expansion: organize examples across cells, layers, subjects, and clinical groups.",
+        "Closed-loop stimulation can adapt to ongoing activity, but it requires fast measurement, real-time analysis, and a clear target. The challenge is to define what to measure, how to interpret it, and how to adjust stimulation accordingly.",
+      prompt: "Goal/Plan: To develop a closed-loop stimulation framework that adapts to real-time brain state measurements.",
       url: "",
-      tags: ["Heterogeneity", "Resilience"]
+      tags: ["Delay", "Phase", "Personalization"]
+    },
+    {
+      id: "sample-stim-memory-change",
+      sample: false,
+      kind: "Research Note",
+      date: "2026-09-12",
+      title: "Does stimulation change memory by changing connectivity or by changing oscillations?",
+      excerpt:
+        "Brain stimulation modifies brain activity, but it is unclear whether stimulation washes out existing memories or creates new ones. Change in connectivity may reduce the ability of brain network to support old memories, even though the desired brain function shows improvement.",
+      prompt: "Goal/Plan: To investigate whether stimulation-induced plasticity changes neural patterns associated with memory retention or formation.",
+      url: "",
+      tags: ["Delay", "Phase", "Personalization"]
     }
-  ],
+    ],
 
   concepts: [
     {

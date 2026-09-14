@@ -62,7 +62,7 @@
     { page: "home", label: "About", path: "index.html" },
     { page: "publications", label: "Publications", path: "publications.html" },
     { page: "tools", label: "Tools", path: "tools/index.html" },
-    { page: "ideas", label: "Ideas & posts", path: "ideas.html" },
+    { page: "ideas", label: "Research", path: "ideas.html" },
     { page: "concepts", label: "Concept atlas", path: "concepts.html" }
   ];
 

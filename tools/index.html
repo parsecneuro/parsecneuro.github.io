@@ -3,16 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Research software and interactive neuroscience tools developed by Aref Pariz, including NESTApp and the EEG Cap Viewer.">
+  <meta name="description" content="Research software and practical tools developed by Aref Pariz, including NESTApp, the EEG Cap Viewer, and Paper Review.">
   <meta name="theme-color" content="#070916">
   <title>Tools &amp; Developments — Aref Pariz</title>
   <script>try { document.documentElement.dataset.theme = localStorage.getItem("neurofolio-theme") || "dark"; } catch (_) { document.documentElement.dataset.theme = "dark"; }</script>
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/css/styles.css">
   <link rel="stylesheet" href="../assets/css/eeg-tool-card.css">
+  <link rel="stylesheet" href="../assets/css/paper-review-card.css">
   <script defer src="../assets/js/content.js"></script>
   <script defer src="../assets/js/cortex.js"></script>
   <script defer src="../assets/js/site.js"></script>
+<!-- tool-counter:head -->
+<link rel="stylesheet" href="../assets/css/tool-counter.css">
+<script defer src="../assets/js/tool-counter-config.js"></script>
+<script defer src="../assets/js/tool-counter.js"></script>
+<!-- /tool-counter:head -->
 </head>
 <body data-page="tools" data-site-root="..">
   <header id="site-header"></header>
@@ -22,7 +28,7 @@
       <div class="page-shell">
         <p class="eyebrow">Tools &amp; developments</p>
         <h1 class="page-title">Research software made for practical use.</h1>
-        <p class="page-intro">Applications that turn specialized EEG and TMS–EEG workflows into clearer, more inspectable interactions.</p>
+        <p class="page-intro">Applications for exploring EEG data, inspecting electrode layouts, and keeping your place while reviewing a paper.</p>
       </div>
     </section>
 
@@ -31,7 +37,7 @@
         <header class="section-header reveal">
           <p class="section-kicker">Current tools</p>
           <div>
-            <h2 class="section-title" id="tool-catalog-title">Two ways to inspect complex data more directly.</h2>
+            <h2 class="section-title" id="tool-catalog-title">Practical workspaces for research.</h2>
             <p class="section-copy">Select a tool for its purpose, expected workflow, requirements, and access options.</p>
           </div>
         </header>
@@ -58,6 +64,7 @@
               <span class="tool-card-link">Explore NESTApp
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
+            <span class="tool-count" data-tool-count="nestapp" title="Page openings since the latest reset. Reloads count again."><span data-count-value>—</span> page visits</span>
             </div>
           </a>
 
@@ -148,9 +155,55 @@
               <span class="tool-card-link">Explore the viewer
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
+            <span class="tool-count" data-tool-count="eeg-cap-viewer" title="Page openings since the latest reset. Reloads count again."><span data-count-value>—</span> opens</span>
             </div>
           </a>
-        </div>
+          <a class="tool-card tool-card-paper reveal" href="./paper-review/index.html" aria-labelledby="paper-review-card-title">
+            <div class="tool-card-visual paper-review-mini" aria-hidden="true">
+              <div class="paper-review-mini-window">
+                <div class="paper-review-mini-bar"><span><i></i>Paper Review</span><span>Local workspace</span></div>
+                <svg class="paper-review-mini-scene" viewBox="0 0 460 240" role="presentation" focusable="false">
+                  <rect class="pr-mini-desk" x="0" y="0" width="460" height="240"/>
+                  <rect class="pr-mini-paper" x="21" y="18" width="198" height="201" rx="3"/>
+                  <rect class="pr-mini-ink" x="39" y="38" width="151" height="6" rx="2"/>
+                  <rect class="pr-mini-ink" x="39" y="49" width="113" height="6" rx="2"/>
+                  <rect class="pr-mini-muted" x="39" y="64" width="86" height="3" rx="1"/>
+                  <path class="pr-mini-lines" d="M39 82h69m-69 9h69m-69 9h69m-69 9h62m-62 9h69m-69 9h60m-60 9h69m-69 9h66m-66 9h69m-69 9h49m18-81h65m-65 9h65m-65 9h59m-59 9h65m-65 9h65m-65 9h50m-50 9h65m-65 9h61m-61 9h65m-65 9h57"/>
+                  <rect class="pr-mini-highlight" x="35" y="169" width="165" height="15" rx="2"/>
+                  <path class="pr-mini-lines" d="M39 176h155m-155 12h112"/>
+                  <text class="pr-mini-page" x="115" y="208">1</text>
+                  <path class="pr-mini-divider" d="M230 0v240"/>
+                  <rect class="pr-mini-paper" x="242" y="18" width="198" height="112" rx="3"/>
+                  <text class="pr-mini-caption" x="258" y="38">Figure 1</text>
+                  <path class="pr-mini-axis" d="M267 52v51h153"/>
+                  <path class="pr-mini-chart" d="M268 91l27-6 24-17 28 6 23-22 24 5 26-15"/>
+                  <circle class="pr-mini-dot" cx="347" cy="74" r="3"/>
+                  <text class="pr-mini-page" x="340" y="120">3</text>
+                  <rect class="pr-mini-note" x="242" y="142" width="198" height="77" rx="5"/>
+                  <text class="pr-mini-note-title" x="255" y="160">REVIEW NOTE</text>
+                  <text class="pr-mini-note-text" x="255" y="179">Could the authors clarify...</text>
+                  <rect class="pr-mini-badge" x="255" y="191" width="90" height="15" rx="7"/>
+                  <text class="pr-mini-badge-text" x="263" y="201">Page 1 · private</text>
+                </svg>
+              </div>
+            </div>
+            <div class="tool-card-body">
+              <div class="tool-card-meta"><span>Browser application</span><span>Alpha 1</span></div>
+              <h2 id="paper-review-card-title">Paper Review</h2>
+              <p>Read a paper in two independent views, highlight and annotate pages, browse references, and collect comments with private page tags. Export a marked PDF or your written review.</p>
+              <div class="tag-list" aria-label="Paper Review topics">
+                <span class="tag">Split PDF view</span>
+                <span class="tag">Review notebook</span>
+                <span class="tag">Local processing</span>
+              </div>
+              <span class="tool-card-link">Open Paper Review
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            <span class="tool-count" data-tool-count="paper-review" title="Page openings since the latest reset. Reloads count again."><span data-count-value>—</span> opens</span>
+            </div>
+          </a>
+        </div><!-- tool-counter:info --><div class="tool-counter-info"><p>Counts show page openings since the latest reset. Reloads count again; NESTApp shows visits to its website page. <a href="./counter-admin/index.html">Manage counters</a></p></div><!-- /tool-counter:info -->
+
       </div>
     </section>
 

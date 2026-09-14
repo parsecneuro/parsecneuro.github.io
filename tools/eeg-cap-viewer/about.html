@@ -24,7 +24,7 @@
           <div class="breadcrumbs reveal"><span><a href="../index.html">Tools</a></span><span>EEG Cap Viewer</span></div>
           <p class="eyebrow reveal">Interactive browser application</p>
           <h1 class="page-title reveal">See where the electrodes are—and how two caps differ.</h1>
-          <p class="page-intro reveal">The EEG Cap Viewer is a browser-based 3D workspace for inspecting standard electrode layouts, loading user coordinates, comparing matched electrodes, and reviewing the coordinate and broad cortical context of a selected location.</p>
+          <p class="page-intro reveal">The EEG Cap Viewer is a browser-based 3D workspace for inspecting standard electrode layouts, loading user coordinates, comparing matched electrodes, reviewing pairwise MNI distances for the visible electrode subset, and exploring the coordinate and broad cortical context of a selected location.</p>
           <div class="hero-actions reveal">
             <a class="button primary" href="./index.html">Launch the viewer
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -39,7 +39,7 @@
         <header class="section-header reveal">
           <p class="section-kicker">What to expect</p>
           <div>
-            <h2 class="section-title">A visual check before coordinates become analysis.</h2>
+            <h2 class="section-title">A visual check of coordinates before they are used in analysis.</h2>
             <p class="section-copy">The viewer is intended to make electrode placement easier to inspect, communicate, and quality-check without requiring a desktop visualization package.</p>
           </div>
         </header>
@@ -47,15 +47,15 @@
         <div class="tool-feature-grid eeg-feature-grid">
           <article class="tool-feature reveal"><span>Standard layouts</span><h3>10–20, 10–10, 10–5, and additional systems</h3><p>Choose a bundled montage and display its electrode labels over the three-dimensional template scalp.</p></article>
           <article class="tool-feature reveal"><span>Your coordinates</span><h3>Load a reference CSV</h3><p>Import electrode labels and Cartesian coordinates, select the units, and preserve the source values while the display head adapts beneath them.</p></article>
-          <article class="tool-feature reveal"><span>Cap comparison</span><h3>Measure displacement</h3><p>Load a second CSV, match electrodes by label, and inspect source-space and template-MNI displacement values.</p></article>
+          <article class="tool-feature reveal"><span>Cap comparison</span><h3>Measure displacement</h3><p>Load a second CSV, match electrodes by label, and inspect source-space and MNI-space displacement values.</p></article>
           <article class="tool-feature reveal"><span>Selective display</span><h3>Show only what matters</h3><p>Turn individual electrodes on or off so dense layouts can be simplified for inspection, teaching, figures, or quality review.</p></article>
-          <article class="tool-feature reveal"><span>Electrode context</span><h3>Select a point to inspect it</h3><p>Click an electrode to view its original coordinate, template MNI/fsaverage projection, and concise functional context.</p></article>
+          <article class="tool-feature reveal"><span>Electrode context</span><h3>Select a point to inspect it</h3><p>Click an electrode to view its coordinate in the correct frame and a concise functional context. Built-in MNI/fsaverage coordinates are shown directly without a redundant projected copy.</p></article>
           <article class="tool-feature reveal"><span>Local processing</span><h3>Your uploaded data stays in the browser</h3><p>CSV files are processed locally by the viewer and are not uploaded to or stored by the website.</p></article>
         </div>
       </div>
     </section>
 
-    <section class="section" id="workflow">
+    <!-- <section class="section" id="workflow">
       <div class="page-shell">
         <header class="section-header reveal">
           <p class="section-kicker">A typical visit</p>
@@ -66,16 +66,16 @@
           <li class="tool-workflow-step reveal"><span>01</span><h3>Choose a system</h3><p>Start from the bundled layout that matches the intended cap or recording system.</p></li>
           <li class="tool-workflow-step reveal"><span>02</span><h3>Load coordinates</h3><p>Use the built-in reference or upload a CSV containing electrode labels and Cartesian coordinates.</p></li>
           <li class="tool-workflow-step reveal"><span>03</span><h3>Control the view</h3><p>Rotate the head, choose which electrodes appear, and select a location to inspect its coordinate information.</p></li>
-          <li class="tool-workflow-step reveal"><span>04</span><h3>Compare and export</h3><p>Add a second cap, examine matched-electrode displacement, and download the comparison table for later review.</p></li>
+          <li class="tool-workflow-step reveal"><span>04</span><h3>Compare and export</h3><p>Add a second cap, examine matched-electrode displacement and pairwise MNI distances, then export the current 3D or matrix view and its labelled data.</p></li>
         </ol>
 
         <div class="tool-note inline-note reveal">
           <p class="section-kicker">Interpretation boundary</p>
           <h2>Designed for visualization and quality review.</h2>
-          <p>Electrode-to-region descriptions and template-MNI projections are broad template-level approximations. The viewer is not a source-localization, neuronavigation, diagnostic, or participant-specific MRI coregistration system.</p>
+          <p>Electrode-to-region descriptions and estimated template coordinates are broad template-level approximations; native MNI/fsaverage preset coordinates are used directly. Pairwise matrix values are straight-line Euclidean distances, not scalp-surface geodesics. The viewer is not a source-localization, neuronavigation, diagnostic, or participant-specific MRI coregistration system.</p>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <section class="section-tight" id="viewer">
       <div class="page-shell">

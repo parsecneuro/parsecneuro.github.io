@@ -1,0 +1,14 @@
+{
+  "name": "parsec-tool-counter",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute parsec-tool-counter --remote --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute parsec-tool-counter --local --file=./schema.sql"
+  },
+  "devDependencies": { "wrangler": "4.131.1" }
+}
