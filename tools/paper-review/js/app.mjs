@@ -18,7 +18,7 @@ const sides={};
 const activeTool={left:'select',right:'select'}, markColor={left:'#f4d75e',right:'#f4d75e'};
 let annotationHistory=[],annotationRedo=[],pendingAnnotation=null;
 let currentFileHandle=null,currentFileDigest=null,savingPDF=false,leavingApproved=false;
-for (const side of ['left','right']) sides[side]=new ReviewPane({container:$(`${side}-pdf`),onPageChange:page=>updatePage(side,page),onError:error=>{if(pdf)notice(`A PDF page could not be displayed: ${error.message}`,'error',false);},onAnnotationCreate:record=>createAnnotation(record),onAnnotationSelect:record=>editAnnotation(record),onAnnotationDelete:id=>deleteAnnotation(id)});
+for (const side of ['left','right']) sides[side]=new ReviewPane({container:$(`${side}-pdf`),onPageChange:page=>updatePage(side,page),onError:error=>{if(pdf)notice(`PDF viewer: ${error.message}`,'error',false);},onAnnotationCreate:record=>createAnnotation(record),onAnnotationSelect:record=>editAnnotation(record),onAnnotationDelete:id=>deleteAnnotation(id)});
 
 function notice(message,kind='',temporary=true) {
   clearTimeout(noticeTimer); $('status').hidden=!message; $('status').textContent=message; $('status').classList.toggle('error',kind==='error');

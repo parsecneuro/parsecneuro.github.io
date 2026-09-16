@@ -1,4 +1,4 @@
-PAPER REVIEW 1.0.0-alpha.2 (ALPHA 2)
+PAPER REVIEW 1.0.0-alpha.3 (ALPHA 3)
 
 OPEN THE WEBSITE
 Use Tools > Paper Review on your published website:
@@ -23,6 +23,15 @@ Rectangle, Erase, Color, Undo, and Redo. Hover for labels. Marks appear in
 both views. Undo and Redo share the annotation history across both views;
 making a new change clears the redo list. Ctrl/Cmd+Z undoes and
 Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y redoes when you are not editing text.
+
+EXISTING PDF HIGHLIGHTS AND COMMENTS
+Highlights and other annotations already embedded in an opened PDF appear
+in both views. Choose Select, then click a small yellow comment icon to read
+an existing note, a comment attached to a highlight, or a reply thread.
+These imported comments are read-only here and remain in the PDF when you
+save it. They are separate from your review notebook and TXT export.
+Marks created with this app remain editable as before. Comments stored only
+inside another app's own workspace must first be saved into the PDF.
 
 SAVE PDF
 Save PDF replaces Export PDF. In a browser supporting file access (such as

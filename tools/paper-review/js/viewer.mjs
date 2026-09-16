@@ -1,5 +1,6 @@
-import { TextLayer } from '../vendor/pdfjs/pdf.mjs';
+import { TextLayer, AnnotationMode } from '../vendor/pdfjs/pdf.mjs';
 import { ANNOTATION_TOOLS, cleanAnnotation, dragRect, noteRect, textRectsForPage } from './annotation-geometry.mjs';
+import { nativeCommentThreads, createNativeCommentsLayer, openNativeCommentDialog } from './native-annotations.mjs';
 
 const PAGE_GAP = 12;
 const STACK_PADDING = 12;
@@ -24,6 +25,8 @@ export class ReviewPane {
     this.tool = 'select';
     this.color = '#f4d75e';
     this._gesture = null;
+    this._nativeDialog = null;
+    this._nativeDialogPage = null;
     this.pdf = null;
     this.pages = [];
     this.zoom = 'fit';
@@ -192,11 +195,13 @@ export class ReviewPane {
       page.annotationLayer?.querySelectorAll('[data-annotation-id]').forEach(mark => {
         mark.setAttribute('tabindex', this.tool === 'select' || this.tool === 'erase' ? '0' : '-1');
       });
+      this._setNativeCommentInteraction(page);
     }
   }
 
   clear() {
     this._cancelGesture();
+    this._closeNativeDialog();
     this.annotations = [];
     this._annotationsByPage.clear();
     this._version++;
@@ -376,7 +381,7 @@ export class ReviewPane {
         viewport,
         transform: ratio === 1 ? null : [ratio, 0, 0, ratio, 0, 0],
         background: '#ffffff',
-        annotationMode: 0,
+        annotationMode: AnnotationMode.ENABLE,
       });
       await record.renderTask.promise;
       if (!valid()) return;
@@ -399,6 +404,24 @@ export class ReviewPane {
         canvas.setAttribute('role', 'img');
         canvas.setAttribute('aria-label', `PDF page ${record.number}. This page has no selectable text; it may contain scanned content or a figure.`);
       }
+      try {
+        const embedded = await page.getAnnotations({ intent: 'display' });
+        if (!valid()) return;
+        const threads = nativeCommentThreads(embedded, viewport);
+        if (threads.length) {
+          record.nativeCommentLayer = createNativeCommentsLayer(threads, record.number, thread => {
+            if (this.tool !== 'select') return;
+            this._closeNativeDialog();
+            this._nativeDialog = openNativeCommentDialog(thread, record.number);
+            this._nativeDialogPage = record.number;
+          });
+          record.element.append(record.nativeCommentLayer);
+          this._setNativeCommentInteraction(record);
+        }
+      } catch (error) {
+        if (!valid()) return;
+        this.onError(new Error(`Existing PDF comments on page ${record.number} could not be loaded. ${error.message}`, { cause: error }));
+      }
       record.status = 'ready';
       this._renderAnnotations(record);
       record.element.removeAttribute('aria-busy');
@@ -417,6 +440,20 @@ export class ReviewPane {
     const element = document.createElementNS(SVG_NS, name);
     for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
     return element;
+  }
+
+  _setNativeCommentInteraction(page) {
+    page.nativeCommentLayer?.querySelectorAll('[data-native-comment]').forEach(button => {
+      button.disabled = this.tool !== 'select';
+      button.tabIndex = this.tool === 'select' ? 0 : -1;
+    });
+  }
+
+  _closeNativeDialog() {
+    if (this._nativeDialog?.open) this._nativeDialog.close();
+    this._nativeDialog?.remove();
+    this._nativeDialog = null;
+    this._nativeDialogPage = null;
   }
 
   _renderAnnotations(page) {
@@ -617,6 +654,7 @@ export class ReviewPane {
 
   _release(page) {
     if (this._gesture?.page === page) this._cancelGesture();
+    if (this._nativeDialogPage === page.number) this._closeNativeDialog();
     page.token++;
     page.renderTask?.cancel();
     page.renderTask = null;
@@ -631,6 +669,8 @@ export class ReviewPane {
     page.element.querySelector('.review-pdf-text')?.remove();
     page.annotationLayer?.remove();
     page.annotationLayer = null;
+    page.nativeCommentLayer?.remove();
+    page.nativeCommentLayer = null;
     page.element.removeAttribute('aria-busy');
     page.status = 'empty';
     page.placeholder.hidden = false;

@@ -97,6 +97,25 @@
 [data-annotation-tool="erase"] .review-annotation:hover > rect,
 [data-annotation-tool="erase"] .review-annotation:hover > ellipse { stroke: #b23b37; stroke-width: 3; }
 
+.review-native-comments{position:absolute;inset:0;z-index:4;pointer-events:none}
+.review-native-comment{position:absolute;display:flex;align-items:center;justify-content:center;width:22px;height:22px;min-width:22px;padding:3px;border:1px solid #90742c;border-radius:4px;background:#fff0ae;color:#65501c;box-shadow:0 1px 3px #0003;pointer-events:none}
+.review-native-comment svg{display:block;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.review-native-comment:disabled{opacity:.8}
+[data-annotation-tool="select"] .review-native-comment{pointer-events:auto;cursor:pointer}
+[data-annotation-tool="select"] .review-native-comment:hover:enabled{background:#ffe18b;border-color:#6f5512;color:#46320a}
+.review-native-comment:focus-visible{outline:2px solid #166599;outline-offset:2px}
+.review-native-dialog{width:min(560px,calc(100vw - 32px));max-height:85dvh;padding:0;border:1px solid #45616b;border-radius:12px;background:#14232b;color:#e2ecec;box-shadow:0 20px 65px #0006;font:13px/1.6 system-ui,sans-serif}
+.review-native-dialog::backdrop{background:#081219a6}
+.review-native-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;border-bottom:1px solid #344b55}
+.review-native-heading h2{margin:0;font-size:14px;font-weight:600}
+.review-native-heading button{flex-shrink:0;width:29px;height:29px;padding:0;border:1px solid #45616b;border-radius:5px;background:transparent;color:inherit;font-size:22px;line-height:1}
+.review-native-comment-body{max-height:55dvh;overflow:auto;overscroll-behavior:contain;padding:4px 18px;user-select:text}
+.review-native-comment-body article{padding:13px 0;border-bottom:1px solid #344b55}
+.review-native-comment-body article:last-child{border-bottom:0}
+.review-native-dialog .review-native-author{margin:0 0 6px;color:#a8c4c7;font-size:11px;overflow-wrap:anywhere}
+.review-native-dialog .review-native-comment-text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.review-native-dialog .review-native-help{padding:12px 18px;margin:0;border-top:1px solid #344b55;color:#a8c4c7;font-size:11px}
+
 [data-annotation-tool="highlight"] .review-pdf-page,
 [data-annotation-tool="rectangle"] .review-pdf-page,
 [data-annotation-tool="ellipse"] .review-pdf-page,
