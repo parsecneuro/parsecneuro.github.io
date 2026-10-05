@@ -148,6 +148,60 @@ window.NEUROFOLIO_CONTENT = {
 
   publications: [
     {
+      slug: "noise-like-fluctuations-neuronal-timescales",
+      year: "2026",
+      type: "Journal article",
+      title: "Noise-like fluctuations drive shifts in neuronal timescales and 1/f power spectra across brain states",
+      venue: "PLOS Complex Systems, 3(9), e0000133",
+      citation: "PLOS Complex Systems 3(9), e0000133 (2026).",
+      authors: "A. Hutt, M. McCulloch, A. G. Hudetz, A. Pariz, and J. Lefebvre",
+      simpleSummary:
+        "Ongoing noise-like fluctuations can change how quickly a neural network responds and reshape the background spectrum of brain activity, even when its connections stay the same.",
+      question: "How can ongoing fluctuations change neuronal timescales and the shape of the background power spectrum across brain states?",
+      approach:
+        "We combined large-scale simulations of sparse, balanced recurrent neural networks with mathematical analysis based on random matrix theory to examine how noise-like inputs interact with nonlinear network dynamics.",
+      result:
+        "Fluctuations altered effective neuronal timescales and shifted the spectral knee, the bend in the power spectrum. These changes emerged from the interaction between noise and nonlinear network dynamics, without requiring changes in network wiring.",
+      contributions: [
+        "Provides a mechanistic link between ongoing fluctuations, neuronal timescales, and aperiodic spectral features.",
+        "Explains how the spectral knee and overall spectrum can change within a fixed recurrent network.",
+        "Shows why changes in spectral biomarkers need not identify a single underlying biological mechanism."
+      ],
+      methods: ["Recurrent neural networks", "Random matrix theory", "Aperiodic activity", "Neuronal timescales", "Brain states"],
+      links: {
+        doi: "https://doi.org/10.1371/journal.pcsy.0000133",
+        manuscript: "https://journals.plos.org/complexsystems/article?id=10.1371/journal.pcsy.0000133"
+      },
+      visual: { kind: "spectra", label: "Fluctuations, timescales, and spectral shape" }
+    },
+    {
+      slug: "myelin-temporal-integration-excitability-plasticity",
+      year: "2026",
+      type: "Journal article",
+      title: "A Computational Framework for Myelin as a Regulator of Temporal Integration, Neuronal Excitability, and Synaptic Plasticity",
+      venue: "Glia, 74(12), e70231",
+      citation: "Glia 74(12), e70231 (2026).",
+      authors: "D. O’Sullivan, A. Pariz, D. Trotter, N. Z. Al Dahhan, J. K. Knowles, P. W. Frankland, D. Mabbott, and J. Lefebvre",
+      simpleSummary:
+        "By changing how quickly signals travel along axons, myelin can reshape when inputs reach a neuron, how readily it fires, and how its synapses change with activity.",
+      question: "How do myelin-related changes in conduction speed influence temporal integration, neuronal excitability, and synaptic plasticity?",
+      approach:
+        "We used computational models to vary axonal conduction velocity across regimes associated with healthy, deficient, and excessive myelination, then examined input correlations, neuronal responses, and spike-timing-dependent plasticity, with and without firing-rate homeostasis.",
+      result:
+        "Changes in conduction speed reorganized the timing and correlations of incoming spikes, altering excitability, excitation–inhibition balance, and synaptic plasticity. Both unusually low and high conduction speeds could produce maladaptive dynamics, while firing-rate homeostasis suggested different consequences for acute and chronic disruption.",
+      contributions: [
+        "Connects myelin-related conduction speed with the timing of inputs and single-neuron computation.",
+        "Provides a framework for understanding how deficient or excessive conduction speed can disrupt neuronal dynamics.",
+        "Examines how firing-rate homeostasis can change the consequences of lasting myelin disruption."
+      ],
+      methods: ["Computational neuron models", "Myelin", "Conduction velocity", "Spike-timing-dependent plasticity", "Firing-rate homeostasis"],
+      links: {
+        doi: "https://doi.org/10.1002/glia.70231",
+        manuscript: "https://pmc.ncbi.nlm.nih.gov/articles/PMC13625199/"
+      },
+      visual: { kind: "network", label: "Conduction timing, excitability, and plasticity" }
+    },
+    {
       slug: "ai-precision-brain-stimulation",
       year: "2026",
       type: "Preprint",
@@ -203,27 +257,28 @@ window.NEUROFOLIO_CONTENT = {
     },
     {
       slug: "personalized-brain-stimulation-oscillations",
-      year: "2025",
-      type: "Preprint",
-      title: "Personalized Brain Stimulation Based on Brain Oscillations: A Systematic Review of MEG- and EEG-Informed tACS Trials",
-      venue: "PsyArXiv",
-      citation: "PsyArXiv preprint (2025).",
-      authors: "S. Sharifzadeh, A. F. Jouzdani, A. Souki, I. Alekseichuk, A. R. Brunoni, D. B. Marques, M. Ebrahimi, P. Ghobadi-Azbari, A. Pariz, G. Soleimani, F. Yavari, R. Khosrowabadi, I. R. Violante, and H. Ekhtiari",
+      year: "2026",
+      type: "Journal article",
+      title: "Personalized brain stimulation based on brain oscillations: A systematic review of MEG- and EEG-informed transcranial alternating current stimulation (tACS)",
+      venue: "Neuroscience & Biobehavioral Reviews, 191, 106991",
+      citation: "Neuroscience & Biobehavioral Reviews 191, 106991 (2026).",
+      authors: "S. Sharifzadeh, A. F. Jouzdani, A. Souki, A. R. Brunoni, D. B. Marques, M. Ebrahimi, P. Ghobadi-Azbari, A. Pariz, G. Soleimani, F. Yavari, R. Khosrowabadi, I. R. Violante, and H. Ekhtiari",
       simpleSummary:
-        "Across 69 publications and 131 experiments, personalized tACS most often used EEG or MEG to choose stimulation frequency, while timing- and montage-based personalization were much less common.",
+        "Across 78 publications and 143 experiments, personalized tACS most often used EEG or MEG to choose stimulation frequency, while timing- and montage-based personalization were much less common.",
       question: "How have EEG and MEG been used to personalize the frequency, timing, or montage of tACS?",
       approach:
         "A PRISMA-guided systematic review identified M/EEG-informed individualized tACS studies published through January 2024 and summarized their personalization choices and outcomes.",
       result:
         "Frequency-based personalization dominated the literature, particularly in the alpha band; the review identifies a need for stronger active controls and broader testing of timing and montage personalization.",
       contributions: [
-        "Characterizes 131 personalized tACS experiments across 69 publications.",
+        "Characterizes 143 personalized tACS experiments across 78 publications.",
         "Separates frequency-, timing-, and montage-based individualization strategies.",
         "Provides a roadmap for more rigorous personalized tACS trials."
       ],
       methods: ["Systematic review", "EEG / MEG", "Personalized tACS", "PRISMA"],
       links: {
-        doi: "https://doi.org/10.31234/osf.io/q8x6v_v1"
+        doi: "https://doi.org/10.1016/j.neubiorev.2026.106991",
+        manuscript: "https://www.sciencedirect.com/science/article/pii/S0149763426004483"
       },
       visual: { kind: "spectra", label: "Frequency-informed personalization" }
     },
@@ -490,20 +545,8 @@ window.NEUROFOLIO_CONTENT = {
   worksInProgress: [
     {
       status: "Manuscript",
-      title: "Noise-like fluctuations drive shifts in 1/f-alpha power-law dynamics associated with changes in brain states",
-      note: "A developing study of how noise-like fluctuations may accompany transitions in 1/f and alpha-band dynamics. Details are limited to the title in the supplied CV.",
-      url: ""
-    },
-    {
-      status: "Manuscript",
       title: "Network-Level Responses to iTBS Pulse Dose: A Non-Linear Pattern Detected with TMS-EEG",
       note: "A study of whether network responses scale linearly with intermittent theta-burst pulse dose. Public abstract not yet available in the supplied materials.",
-      url: ""
-    },
-    {
-      status: "In preparation",
-      title: "Myelin-mediated control on neural excitability, correlations and synaptic plasticity",
-      note: "A developing project on how myelin may shape excitability and plasticity. Details are limited to the title in the supplied CV.",
       url: ""
     },
     {
