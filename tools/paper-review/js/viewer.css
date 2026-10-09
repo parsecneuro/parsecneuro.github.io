@@ -68,6 +68,10 @@
 
 .review-pdf-page .textLayer ::selection { background: #5bafe663; }
 
+.review-search-layer{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.review-search-match{position:absolute;background:#ffda0080;mix-blend-mode:multiply;border-radius:2px;pointer-events:none}
+.review-search-match.is-current{background:#ff960099;outline:2px solid #bc5500;outline-offset:1px}
+
 .review-annotation-layer {
   position: absolute;
   inset: 0;

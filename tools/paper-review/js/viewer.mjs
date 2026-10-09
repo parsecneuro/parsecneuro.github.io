@@ -22,6 +22,8 @@ export class ReviewPane {
     this.onAnnotationDelete = onAnnotationDelete;
     this.annotations = [];
     this._annotationsByPage = new Map();
+    this._searchByPage = new Map();
+    this._searchFocus = null;
     this.tool = 'select';
     this.color = '#f4d75e';
     this._gesture = null;
@@ -185,6 +187,69 @@ export class ReviewPane {
     for (const page of this.pages) if (page.status === 'ready') this._renderAnnotations(page);
   }
 
+  /** Search marks are temporary DOM overlays, never PDF annotations. */
+  setSearchResults(matches, selected = -1) {
+    this._searchByPage.clear();
+    matches.forEach((match, index) => {
+      if (!this._searchByPage.has(match.page)) this._searchByPage.set(match.page, []);
+      this._searchByPage.get(match.page).push({ ...match, selected: index === selected });
+    });
+    this._searchFocus = matches[selected] || null;
+    if (this._searchFocus) this.goToPage(this._searchFocus.page);
+    for (const page of this.pages) if (page.status === 'ready') this._renderSearch(page);
+  }
+
+  _renderSearch(page) {
+    page.searchLayer?.remove(); page.searchLayer = null;
+    const matches = this._searchByPage.get(page.number);
+    if (!matches?.length || !page.textLayer) return;
+    const divs = page.textLayer.textDivs;
+    let offset = 0;
+    const entries = page.textLayer.textContentItemsStr.map((str, index) => {
+      const entry = { start: offset, end: offset + str.length, div: divs[index] };
+      offset += str.length; return entry;
+    });
+    const layer = document.createElement('div');
+    layer.className = 'review-search-layer'; layer.setAttribute('aria-hidden', 'true');
+    const pageBounds = page.element.getBoundingClientRect();
+    let focusBounds = null;
+    for (const match of matches) {
+      // A range per text span avoids highlighting column gaps or whole lines.
+      let low = 0, high = entries.length;
+      while (low < high) {
+        const middle = (low + high) >> 1;
+        if (entries[middle].end <= match.begin) low = middle + 1;
+        else high = middle;
+      }
+      for (let i = low; i < entries.length && entries[i].start < match.end; i++) {
+        const entry = entries[i];
+        const node = entry.div?.firstChild;
+        if (!node || node.nodeType !== Node.TEXT_NODE) continue;
+        const range = document.createRange();
+        range.setStart(node, Math.max(0, match.begin - entry.start));
+        range.setEnd(node, Math.min(node.length, match.end - entry.start));
+        for (const rect of range.getClientRects()) {
+          if (rect.width < .2 || rect.height < .2) continue;
+          const mark = document.createElement('span');
+          mark.className = 'review-search-match' + (match.selected ? ' is-current' : '');
+          Object.assign(mark.style, { left: `${rect.left - pageBounds.left}px`, top: `${rect.top - pageBounds.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+          layer.append(mark);
+          if (match.selected && !focusBounds) focusBounds = rect;
+        }
+      }
+    }
+    page.element.append(layer); page.searchLayer = layer;
+    if (this._searchFocus?.page === page.number && focusBounds) {
+      this._searchFocus = null;
+      const bounds = this.container.getBoundingClientRect();
+      this.container.scrollTop = Math.max(page.top - STACK_PADDING,
+        this.container.scrollTop + focusBounds.top - bounds.top - this.container.clientHeight * .3);
+      if (focusBounds.left < bounds.left || focusBounds.right > bounds.right)
+        this.container.scrollLeft += focusBounds.left - bounds.left - this.container.clientWidth * .25;
+      this._schedule();
+    }
+  }
+
   setTool(tool, color = '#f4d75e') {
     this._cancelGesture();
     this.tool = ANNOTATION_TOOLS.has(tool) ? tool : 'select';
@@ -204,6 +269,7 @@ export class ReviewPane {
     this._closeNativeDialog();
     this.annotations = [];
     this._annotationsByPage.clear();
+    this._searchByPage.clear(); this._searchFocus = null;
     this._version++;
     this.pdf = null;
     this._wanted.clear();
@@ -424,6 +490,7 @@ export class ReviewPane {
       }
       record.status = 'ready';
       this._renderAnnotations(record);
+      this._renderSearch(record);
       record.element.removeAttribute('aria-busy');
     } catch (error) {
       if (!valid() || error?.name === 'RenderingCancelledException' || error?.name === 'AbortException') return;
@@ -660,6 +727,8 @@ export class ReviewPane {
     page.renderTask = null;
     page.textLayer?.cancel();
     page.textLayer = null;
+    page.searchLayer?.remove();
+    page.searchLayer = null;
     if (page.canvas) {
       page.canvas.width = 0;
       page.canvas.height = 0;

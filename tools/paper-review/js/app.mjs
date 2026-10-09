@@ -3,11 +3,14 @@ import {ReviewPane} from './viewer.mjs';
 import {exportAnnotatedPDF,prepareSavedPDF} from './annotation-export.mjs';
 import {savePDFFile,digestBytes} from './pdf-file-access.mjs';
 import {upgradeWorkspaceUI} from './workspace-ui.mjs';
+import {PDFSearch} from './pdf-search.mjs';
+import {setupAppearance} from './appearance.mjs';
 import {extractReferences,parseReferences} from './references.mjs';
 import {extractReferences as extractOriginalReferences,parseReferences as parseOriginalReferences} from './references-original.mjs';
 import {newReview,normalizeReview,normalizeAnnotations,exportReviewText,updateDraft,commitDraft} from './review-state.mjs';
 
 upgradeWorkspaceUI();
+setupAppearance();
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.mjs',import.meta.url).href;
 const $ = id => document.getElementById(id);
 let pdf=null, review=newReview(), storageKey=null, fileName='', loading=false;
@@ -19,6 +22,21 @@ const activeTool={left:'select',right:'select'}, markColor={left:'#f4d75e',right
 let annotationHistory=[],annotationRedo=[],pendingAnnotation=null;
 let currentFileHandle=null,currentFileDigest=null,savingPDF=false,leavingApproved=false;
 for (const side of ['left','right']) sides[side]=new ReviewPane({container:$(`${side}-pdf`),onPageChange:page=>updatePage(side,page),onError:error=>{if(pdf)notice(`PDF viewer: ${error.message}`,'error',false);},onAnnotationCreate:record=>createAnnotation(record),onAnnotationSelect:record=>editAnnotation(record),onAnnotationDelete:id=>deleteAnnotation(id)});
+const pdfSearch = new PDFSearch({pane:sides.left,input:$('left-search-input'),status:$('left-search-status'),previous:$('left-search-prev'),next:$('left-search-next'),matchCase:$('left-search-case'),wholeWord:$('left-search-word')});
+pdfSearch.setDocument(null);
+function toggleSearch(open) {
+  $('left-search-bar').hidden = !open;
+  $('left-search-toggle').setAttribute('aria-expanded', String(open));
+  if (open) { $('left-search-input').focus(); $('left-search-input').select(); }
+  else { pdfSearch.clear(); $('left-search-toggle').focus(); }
+}
+$('left-search-toggle').addEventListener('click', () => toggleSearch($('left-search-bar').hidden));
+$('left-search-close').addEventListener('click', () => toggleSearch(false));
+document.addEventListener('keydown', event => {
+  if (pdf && (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f' && !document.querySelector('dialog[open]')) {
+    event.preventDefault(); toggleSearch(true);
+  }
+});
 
 function notice(message,kind='',temporary=true) {
   clearTimeout(noticeTimer); $('status').hidden=!message; $('status').textContent=message; $('status').classList.toggle('error',kind==='error');
@@ -128,6 +146,7 @@ async function openPDF(bytes,name,{handle=null}={}) {
     }
     $('welcome').hidden=true;$('companion-empty').hidden=true;
     await Promise.all([sides.left.setDocument(pdf),sides.right.setDocument(pdf)]);
+    pdfSearch.setDocument(pdf); $('left-search-toggle').disabled=false;
     for(const side of ['left','right'])setAnnotationTool(side,'select');
     syncAnnotations();
     $('file-name').textContent=name;$('file-detail').textContent=`${pdf.numPages} pages · Local PDF · Scroll each view independently`;
@@ -285,6 +304,8 @@ function clearWorkspace() {
   const old=pdf;documentVersion++;abortRefs?.abort();abortRefs=null;sessionReviews.delete(storageKey);unsavedKeys.delete(storageKey);
   for(const key of activeStorageKeys){sessionReviews.delete(key);unsavedKeys.delete(key);}activeStorageKeys.clear();
   pdf=null;storageKey=null;fileName='';review=newReview();annotationHistory=[];annotationRedo=[];pendingAnnotation=null;persistenceFailed=false;currentFileHandle=null;currentFileDigest=null;
+  pdfSearch.setDocument(null); $('left-search-bar').hidden=true;
+  $('left-search-toggle').disabled=true; $('left-search-toggle').setAttribute('aria-expanded','false');
   for(const side of ['left','right']) {
     sides[side].clear();sides[side].setAnnotations([]);setAnnotationTool(side,'select');$(`${side}-pdf`).hidden=true;
     $(`${side}-total`).textContent='/ —';$(`${side}-page`).value=1;
