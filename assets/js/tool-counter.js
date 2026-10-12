@@ -61,8 +61,12 @@
         !source.pathname.endsWith(rootSuffix)) throw new Error('Counter configuration is invalid.');
     endpoint = service.origin;
     const root = source.pathname.slice(0, -rootSuffix.length);
-    app = apps.find(name => window.location.pathname === `${root}/tools/${name}/` ||
-      window.location.pathname === `${root}/tools/${name}/index.html`) || null;
+    // Each app declares its own identity. Counting never depends on a Tools
+    // catalogue click, referrer, query string, or previous browser session.
+    const declaredApp = script.dataset.toolApp;
+    const path = window.location.pathname.replace(/\/$/, '');
+    app = apps.includes(declaredApp) ? declaredApp : apps.find(name =>
+      path === `${root}/tools/${name}` || path === `${root}/tools/${name}/index.html`) || null;
   } catch (_) {
     unavailable('Counter is unavailable on this preview or is not configured.');
     return;
@@ -161,5 +165,6 @@
   document.addEventListener('visibilitychange', visible);
   document.addEventListener('prerenderingchange', visible);
   window.addEventListener('pageshow', visible);
+  window.addEventListener('focus', visible);
   visible();
 })();
