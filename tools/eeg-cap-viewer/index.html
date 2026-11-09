@@ -6,12 +6,7 @@
   <link rel="icon" href="data:,">
   <meta name="description" content="Interactive browser-based 3D viewer for international 10-20, 10-10, 10-5 and other EEG montage templates, custom coordinates, and cap-to-cap comparison.">
   <title>Interactive 3D EEG Cap Viewer</title>
-  <link rel="stylesheet" href="./css/app.css">
-<!-- tool-counter:head -->
-<link rel="stylesheet" href="../../assets/css/tool-counter.css">
-<script defer src="../../assets/js/tool-counter-config.js?v=20261012-2"></script>
-<script defer src="../../assets/js/tool-counter.js?v=20261012-2" data-tool-app="eeg-cap-viewer"></script>
-<!-- /tool-counter:head -->
+  <link rel="stylesheet" href="./css/app.css?v=1.2.0">
 </head>
 <body>
   <div id="app-shell">
@@ -19,7 +14,7 @@
       <div>
         <div class="title-row">
           <h1 id="app-title">Interactive 3D EEG Cap Viewer</h1>
-          <span class="version-badge" id="version-badge">1.2.2</span>
+          <span class="version-badge" id="version-badge">1.2.0</span>
         </div>
         <p id="app-subtitle">Browser-based review and comparison of EEG electrode coordinates</p>
       </div>
@@ -65,7 +60,10 @@
                 <h2>Comparison cap</h2>
                 <span class="status-pill muted" id="comparison-status-pill">Optional</span>
               </div>
-              <p class="small-note">Load a second CSV to compare electrodes with matching labels.</p>
+              <label>Built-in comparison system
+                <select id="comparison-montage-select" aria-label="Choose a built-in comparison montage"></select>
+              </label>
+              <p class="small-note">Choose another preset or load a second CSV. Shared electrode labels are matched automatically.</p>
               <label class="file-button comparison" for="comparison-file-input">Load comparison CSV</label>
               <input id="comparison-file-input" type="file" accept=".csv,text/csv">
               <div class="two-column-controls">
@@ -84,7 +82,7 @@
             <div class="button-row wrap">
               <button class="text-button" id="download-default-button" type="button">Download current preset CSV</button>
             </div>
-            <p class="format-note"><strong>Coordinate input:</strong> use <code>label,x,y,z</code> for the exact cap/CSV coordinates. Use <code>label,mni_x,mni_y,mni_z</code> only when those values are already registered to MNI/fsaverage, or include both triplets when both are known. Optional <code>NAS</code>/<code>Nasion</code>, <code>LPA</code>, and <code>RPA</code> fiducial rows can support an estimated template registration. Source coordinates already in MNI/fsaverage space are used directly; other source values are preserved and any supplied or estimated MNI coordinate is identified separately.</p>
+            <p class="format-note"><strong>Coordinate input:</strong> use <code>label,x,y,z</code> for the exact cap/CSV coordinates. Use <code>label,mni_x,mni_y,mni_z</code> only when those values are already registered to MNI/fsaverage, or include both triplets when both are known. Optional <code>NAS</code>/<code>Nasion</code>, <code>LPA</code>, and <code>RPA</code> fiducial rows can support an estimated template registration. The viewer always preserves the source values and reports the template-MNI estimate separately.</p>
           </div>
         </details>
 
@@ -100,35 +98,50 @@
 
             <label class="checkbox-row">
               <input type="checkbox" id="auto-fit-checkbox" checked>
-              <span>Adapt the head to loaded coordinates</span>
+              <span>Fit head size to the cap</span>
             </label>
-            <p class="small-note">The electrodes remain at their original coordinates. The displayed head is scaled and smoothly adjusted beneath them.</p>
-
-            <label>Fit head using
+            <p class="small-note">Every preset or CSV load starts again from the original head mesh. Rotation, translation, and uniform scaling preserve the head's proportions; no local scalp deformation is used.</p>
+            <label>Display reference head
               <select id="fit-source-select">
-                <option value="reference" selected>Reference cap</option>
-                <option value="comparison">Comparison cap</option>
-                <option value="average">Average of both caps</option>
+                <option value="reference" selected>Cap A (reference)</option>
+                <option value="comparison">Cap B (comparison)</option>
               </select>
             </label>
-
+            <label>Head display
+              <select id="comparison-layout-select">
+                <option value="overlay" selected>One reference head, both caps</option>
+                <option value="split">Two heads, independently fitted</option>
+              </select>
+            </label>
+            <label>Overlay coordinate alignment
+              <select id="comparison-alignment-select">
+                <option value="auto" selected>Automatic (preserve a known shared frame)</option>
+                <option value="source">Keep source frames (already aligned)</option>
+                <option value="rigid">Align matching labels (rigid, no rescaling)</option>
+              </select>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="sync-cameras-checkbox" checked>
+              <span>Link rotation and zoom for two heads</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="project-electrodes-checkbox" checked>
+              <span>Place display markers on the scalp</span>
+            </label>
+            <p class="small-note">Projection moves only the displayed markers, not source/MNI coordinates or comparison results. Turn it off to inspect the original scalp gaps. The reference-head choice does not swap Cap A/B in the results.</p>
             <div class="range-control">
-              <div class="range-label"><span>Adaptive scalp fit</span><output id="warp-strength-output">75%</output></div>
-              <input id="warp-strength-range" type="range" min="0" max="1" step="0.05" value="0.75">
+              <div class="range-label"><span>Marker clearance above scalp</span><output id="clearance-output">2.0 mm</output></div>
+              <input id="clearance-range" type="range" min="0.5" max="8" step="0.5" value="2">
             </div>
             <div class="range-control">
-              <div class="range-label"><span>Scalp clearance below electrodes</span><output id="clearance-output">2.0 mm</output></div>
-              <input id="clearance-range" type="range" min="0" max="8" step="0.5" value="2">
+              <div class="range-label"><span>Head-size adjustment</span><output id="head-scale-output">1.00</output></div>
+              <input id="head-scale-range" type="range" min="0.85" max="1.15" step="0.01" value="1">
             </div>
+            <button class="secondary-button" id="refit-head-button" type="button">Recalculate head fits</button>
             <div class="range-control">
-              <div class="range-label"><span>Overall head scale</span><output id="head-scale-output">1.00</output></div>
-              <input id="head-scale-range" type="range" min="0.75" max="1.30" step="0.01" value="1">
+              <div class="range-label"><span>Head opacity</span><output id="head-opacity-output">0.85</output></div>
+              <input id="head-opacity-range" type="range" min="0.05" max="1" step="0.01" value="0.85">
             </div>
-            <div class="range-control">
-              <div class="range-label"><span>Head opacity</span><output id="head-opacity-output">0.58</output></div>
-              <input id="head-opacity-range" type="range" min="0" max="1" step="0.01" value="0.58">
-            </div>
-            <p class="small-note">Head opacity changes only the scalp surface. At 1, the solid scalp naturally hides electrodes behind it; lower values make the scalp transparent. Electrode opacity remains a separate control.</p>
             <label class="color-row">Head color
               <input id="head-color-input" type="color" value="#d8b49b" aria-label="Head color">
             </label>
@@ -252,41 +265,34 @@
           <button type="button" data-view="right" class="view-button">Right</button>
           <button type="button" data-view="top" class="view-button">Top</button>
           <button type="button" data-view="bottom" class="view-button">Bottom</button>
-          <div class="view-toolbar-export">
-            <button type="button" class="secondary-button compact" id="open-distance-dialog-button" aria-haspopup="dialog" aria-controls="distance-dialog" aria-expanded="false">Open distance matrix</button>
-            <button type="button" class="secondary-button compact" id="export-view-button">Export current view PNG</button>
-            <span id="export-view-status" aria-live="polite">Uses the current orientation and zoom.</span>
-          </div>
         </nav>
 
+        <p id="display-mode-status" class="display-mode-status" role="status">Fitting the selected cap...</p>
         <div class="viewer-card">
           <div id="loading-overlay"><div class="spinner"></div><span>Preparing 3D viewer…</span></div>
           <div id="eeg-plot" role="img" aria-label="Interactive 3D EEG cap viewer"></div>
-          <div class="view-orientation-indicator" id="view-orientation-indicator" aria-label="Current anatomical viewing direction">
-            <span>Viewing from</span>
-            <strong id="view-orientation-label">Front (nose) + patient's right side · viewed from above</strong>
-            <small>Directions use the patient's anatomy; front means the nose.</small>
-          </div>
         </div>
 
-        <section class="selected-coordinate-strip" id="selected-coordinate-strip" aria-live="polite" aria-label="Selected electrode coordinates">
+        <section class="selected-coordinate-strip" id="selected-coordinate-strip" aria-live="polite" aria-label="Selected electrode source and template MNI coordinates">
           <div class="selected-coordinate-heading">
             <span id="selected-coordinate-label">No electrode selected</span>
-            <small id="selected-coordinate-help">Click an electrode to display its coordinate in the correct source or MNI/fsaverage frame.</small>
+            <small>Click an electrode to display its exact source coordinate and its separate template MNI/fsaverage scalp projection.</small>
           </div>
           <div class="selected-coordinate-grid">
-            <div class="selected-coordinate-block source" id="selected-source-coordinate-block">
-              <span id="selected-source-coordinate-title">Original / CSV coordinate</span>
+            <div class="selected-coordinate-block source">
+              <span>Original / CSV coordinate</span>
               <strong id="selected-coordinate-value">x — · y — · z —</strong>
               <small id="selected-coordinate-frame">Coordinate frame not selected.</small>
             </div>
-            <div class="selected-coordinate-block mni" id="selected-mni-coordinate-block">
-              <span id="selected-mni-coordinate-title">MNI/fsaverage coordinate</span>
+            <div class="selected-coordinate-block mni">
+              <span>Template MNI/fsaverage scalp projection</span>
               <strong id="selected-mni-coordinate-value">x — · y — · z —</strong>
-              <small id="selected-mni-coordinate-method">Coordinate method will be shown here.</small>
+              <small id="selected-mni-coordinate-method">Projection method will be shown here.</small>
             </div>
           </div>
         </section>
+
+        <p id="display-projection-note" class="display-mode-status"></p>
 
         <section class="summary-grid">
           <article class="info-card" id="selected-electrode-card">
@@ -304,71 +310,17 @@
               <div><span class="metric-value" id="mean-distance">—</span><span class="metric-label">Mean source distance</span></div>
               <div><span class="metric-value" id="max-distance">—</span><span class="metric-label">Maximum source distance</span></div>
             </div>
+            <p id="comparison-frame-note" class="small-note comparison-frame-note"></p>
             <div id="comparison-table-wrap" class="table-wrap empty-state">Load a comparison CSV to calculate electrode differences.</div>
           </article>
         </section>
 
         <footer class="viewer-footer">
           <p>EEG coordinates and CSV contents are processed locally in your browser and are not uploaded or stored by this website.</p>
-          <p>Template scalp: MNE-Python fsaverage head surface. Native MNI/fsaverage coordinates are used directly; supplied or estimated template coordinates for other source frames are identified separately and are not subject-specific MRI coregistration. See <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">third-party notices</a>.</p>
-        <!-- tool-counter:info --><p class="tool-counter-disclosure">When enabled, the site counter records page openings using an app identifier and a random request ID. Files and their contents are not sent.</p><!-- /tool-counter:info -->
-</footer>
+          <p>Template scalp: MNE-Python fsaverage head surface. Source coordinates and template MNI/fsaverage scalp projections are reported separately; estimated projections are not subject-specific MRI coregistration. See <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">third-party notices</a>.</p>
+        </footer>
       </section>
     </main>
-
-    <dialog class="distance-dialog" id="distance-dialog" aria-labelledby="distance-matrix-title" aria-describedby="distance-dialog-description">
-      <div class="distance-dialog-panel">
-        <div class="distance-dialog-toolbar">
-          <span>Optional distance analysis</span>
-          <button class="secondary-button compact" id="close-distance-dialog-button" type="button" aria-label="Close electrode distance matrix">Close</button>
-        </div>
-        <section class="distance-matrix-card">
-          <div class="distance-matrix-header">
-            <div>
-              <h2 id="distance-matrix-title">Pairwise electrode distances in MNI space</h2>
-              <p id="distance-dialog-description">Each cell shows the straight-line Euclidean distance in millimeters between two visible electrodes. The matrix follows the electrodes currently shown for the selected cap; use <strong>Electrode visibility</strong> to choose the subset. These are not distances measured along the scalp surface.</p>
-            </div>
-            <div class="distance-matrix-controls">
-              <label>Cap / EEG system
-                <select id="distance-cap-select">
-                  <option value="reference" selected>Reference cap</option>
-                  <option value="comparison" disabled>Comparison cap</option>
-                </select>
-              </label>
-              <div class="button-row wrap">
-                <button class="secondary-button compact" id="download-distance-csv-button" type="button" disabled>Export CSV</button>
-                <button class="secondary-button compact" id="download-distance-png-button" type="button" disabled>Export PNG</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="distance-matrix-layout">
-            <div class="distance-plot-shell">
-              <div id="distance-plot" role="region" aria-label="Color-coded pairwise electrode distance matrix in MNI space" aria-describedby="distance-matrix-status"></div>
-              <div class="distance-plot-empty" id="distance-plot-empty" hidden>No visible electrodes with MNI coordinates are available for this cap.</div>
-            </div>
-            <aside class="distance-hover-readout" aria-label="Selected electrode pair and distance">
-              <span>Electrode pair</span>
-              <div class="distance-pair-live" aria-live="polite" aria-atomic="true">
-                <strong id="distance-hover-pair">— ↔ —</strong>
-                <output id="distance-hover-value">Point to a matrix cell</output>
-              </div>
-              <div class="distance-pair-selectors">
-                <label>Row electrode
-                  <select id="distance-row-electrode-select" disabled><option value="">Choose row</option></select>
-                </label>
-                <label>Column electrode
-                  <select id="distance-column-electrode-select" disabled><option value="">Choose column</option></select>
-                </label>
-              </div>
-              <button class="secondary-button compact" id="clear-distance-pair-button" type="button" disabled>Clear pinned pair</button>
-              <small>Hover or tap a cell to trace its row and column, or choose both electrodes above. Click or tap a cell to pin it.</small>
-            </aside>
-          </div>
-          <p class="distance-matrix-status" id="distance-matrix-status" role="status">The matrix will be prepared when this window opens.</p>
-        </section>
-      </div>
-    </dialog>
 
     <footer class="developer-credit">
       <span>Developed by <a data-developer-link href="https://parsecneuro.github.io/">Aref Pariz, Ph.D.</a> for <a data-developer-link data-link-text="site" href="https://parsecneuro.github.io/">PARSEC Neuro</a> · Website: <a data-developer-link data-link-text="url" href="https://parsecneuro.github.io/">parsecneuro.github.io</a>.</span>
@@ -377,12 +329,13 @@
   </div>
 
   <noscript>This viewer requires JavaScript.</noscript>
-  <script src="./js/vendor/plotly-3.3.1.min.js"></script>
-  <script src="./js/config.js"></script>
+  <script src="./js/vendor/plotly-6.5.2.min.js"></script>
+  <script src="./js/config.js?v=1.2.0"></script>
   <script src="./data/default_1010.js"></script>
   <script src="./data/montage_presets.js"></script>
   <script src="./data/electrode_metadata.js"></script>
   <script src="./assets/fsaverage_scalp_mesh.js"></script>
-  <script src="./js/app.js"></script>
+  <script src="./js/head-fitting.js?v=1.2.0"></script>
+  <script src="./js/app.js?v=1.2.0"></script>
 </body>
 </html>

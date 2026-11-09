@@ -6,7 +6,6 @@
   const REGION_LIBRARY = window.EEG_REGION_LIBRARY || {};
   const REGION_OVERRIDES = window.EEG_ELECTRODE_REGION_OVERRIDES || {};
   const MAPPING_REFERENCES = Array.isArray(window.EEG_MAPPING_REFERENCES) ? window.EEG_MAPPING_REFERENCES : [];
-  const METADATA_VERSION = window.EEG_ELECTRODE_METADATA_VERSION || "unknown";
   const DEFAULT_MONTAGE_ID = CONFIG.defaultMontage || "international_1010";
   const DEFAULT_PRESET = MONTAGES[DEFAULT_MONTAGE_ID] || MONTAGES.international_1010 || null;
   const DEFAULT_COORDS = DEFAULT_PRESET?.electrodes || (Array.isArray(window.DEFAULT_EEG_1010) ? window.DEFAULT_EEG_1010 : []);
@@ -32,10 +31,13 @@
     headModel: "template",
     autoFit: true,
     fitSource: "reference",
-    warpStrength: 0.75,
+    projectElectrodes: true,
+    comparisonLayout: "overlay",
+    comparisonAlignment: "auto",
+    syncCameras: true,
     clearance: 2,
     headScale: 1,
-    headOpacity: 0.58,
+    headOpacity: 0.85,
     headColor: "#d8b49b",
     headContours: true,
     referenceColor: "#1769aa",
@@ -66,22 +68,20 @@
     lastClicked: null,
     hoverPreview: null,
     currentView: "default",
-    currentCamera: copyCamera(CAMERA_VIEWS.default),
-    applyingPresetCamera: false,
     renderTimer: null,
     plotInitialized: false,
     comparisonRows: [],
     fitStatus: "",
-    distanceDialogOpen: false,
-    distanceNeedsRender: true,
-    distanceRenderTimer: null,
-    distancePlotInitialized: false,
-    distanceMatrix: null,
-    distanceRenderRevision: 0,
-    distanceReadyRevision: 0,
-    distanceRenderQueue: Promise.resolve(),
-    distancePinnedPair: null,
-    distanceStatusText: "Preparing the distance matrix…"
+    capContext: { reference: {}, comparison: {} },
+    comparisonPresetId: "",
+    dataRevision: 0,
+    loadGeneration: { reference: 0, comparison: 0 },
+    displayGeometry: null,
+    camera: null,
+    comparisonCamera: null,
+    syncingCamera: false,
+    renderBusy: false,
+    renderAgain: false
   };
 
   const dom = {};
@@ -93,31 +93,24 @@
   function cacheDom() {
     const ids = [
       "app-shell", "app-header", "app-title", "app-subtitle", "version-badge",
-      "montage-select", "montage-description", "reference-file-input", "comparison-file-input", "reference-units", "comparison-units",
+      "montage-select", "montage-description", "comparison-montage-select", "reference-file-input", "comparison-file-input", "reference-units", "comparison-units",
       "restore-default-button", "clear-comparison-button", "reset-all-button", "fullscreen-button",
-      "export-view-button", "export-view-status", "view-orientation-indicator", "view-orientation-label",
-      "open-distance-dialog-button", "close-distance-dialog-button", "distance-dialog",
       "download-default-button", "download-comparison-button",
       "reference-file-status", "comparison-file-status", "reference-status-pill", "comparison-status-pill",
-      "head-model-select", "auto-fit-checkbox", "fit-source-select", "warp-strength-range", "clearance-range",
+      "head-model-select", "auto-fit-checkbox", "fit-source-select", "project-electrodes-checkbox", "comparison-layout-select", "comparison-alignment-select", "sync-cameras-checkbox", "refit-head-button", "clearance-range",
       "head-scale-range", "head-opacity-range", "head-color-input", "head-contours-checkbox", "head-model-status",
       "reference-color-input", "reference-size-range", "reference-opacity-range", "comparison-color-input",
       "comparison-size-range", "comparison-opacity-range", "show-labels-checkbox", "label-color-input",
       "font-size-range", "hitbox-size-range", "background-color-input", "show-lines-checkbox",
-      "color-by-distance-checkbox", "line-opacity-range", "warp-strength-output", "clearance-output",
+      "color-by-distance-checkbox", "line-opacity-range", "display-mode-status", "display-projection-note", "comparison-frame-note", "clearance-output",
       "head-scale-output", "head-opacity-output", "reference-size-output", "reference-opacity-output",
       "comparison-size-output", "comparison-opacity-output", "font-size-output", "hitbox-size-output",
       "line-opacity-output", "visibility-edit-button", "visibility-editor-status", "visibility-editor-panel", "visibility-target-select",
       "visibility-search-input", "visibility-show-all-button", "visibility-hide-all-button", "visibility-invert-button",
       "visibility-summary", "electrode-visibility-list", "loading-overlay", "eeg-plot", "selected-coordinate-strip",
-      "selected-coordinate-label", "selected-coordinate-help", "selected-coordinate-frame", "selected-coordinate-value",
-      "selected-source-coordinate-block", "selected-source-coordinate-title", "selected-mni-coordinate-block",
-      "selected-mni-coordinate-title", "selected-mni-coordinate-value", "selected-mni-coordinate-method",
-      "selected-cap-pill", "selected-electrode-content",
-      "matched-count", "mean-distance", "max-distance", "comparison-table-wrap",
-      "distance-cap-select", "distance-plot", "distance-plot-empty", "distance-matrix-status",
-      "distance-hover-pair", "distance-hover-value", "distance-row-electrode-select", "distance-column-electrode-select",
-      "clear-distance-pair-button", "download-distance-csv-button", "download-distance-png-button"
+      "selected-coordinate-label", "selected-coordinate-frame", "selected-coordinate-value", "selected-mni-coordinate-value",
+      "selected-mni-coordinate-method", "selected-cap-pill", "selected-electrode-content",
+      "matched-count", "mean-distance", "max-distance", "comparison-table-wrap"
     ];
     ids.forEach((id) => { dom[id] = byId(id); });
   }
@@ -135,44 +128,8 @@
   }
 
   function labelKey(value) {
-    return String(value ?? "")
-      .trim()
-      .replace(/[\u2033\u201c\u201d"]/g, "''")
-      .replace(/[\u2032\u02b9\u2018\u2019`\u00b4]/g, "'")
-      .replace(/[^A-Za-z0-9']/g, "")
-      .toLowerCase();
+    return String(value ?? "").trim().replace(/[\s_]/g, "").replace(/[\u2032\u2018\u2019]/g, "\'").replace(/\u2033/g, "\'\'").toLowerCase();
   }
-
-  const REGION_OVERRIDES_BY_KEY = new Map(
-    Object.entries(REGION_OVERRIDES).map(([label, value]) => [labelKey(label), value])
-  );
-
-  function regionOverride(label) {
-    return REGION_OVERRIDES_BY_KEY.get(labelKey(label));
-  }
-
-  function copyCamera(camera, fallback = CAMERA_VIEWS.default) {
-    const source = camera || {};
-    const base = fallback || CAMERA_VIEWS.default;
-    const point = (value, defaultValue) => ({
-      x: Number.isFinite(Number(value?.x)) ? Number(value.x) : Number(defaultValue.x),
-      y: Number.isFinite(Number(value?.y)) ? Number(value.y) : Number(defaultValue.y),
-      z: Number.isFinite(Number(value?.z)) ? Number(value.z) : Number(defaultValue.z)
-    });
-    return {
-      eye: point(source.eye, base.eye),
-      up: point(source.up, base.up),
-      center: point(source.center, base.center),
-      projection: { type: source.projection?.type || base.projection?.type || "perspective" }
-    };
-  }
-
-  function electrodeVisibilityId(electrode) {
-    if (electrode?.visibilityId) return electrode.visibilityId;
-    return `${labelKey(electrode?.label)}::${Number.isInteger(electrode?.index) ? electrode.index : "0"}`;
-  }
-
-  const ELECTRODE_CUSTOMDATA_ID_INDEX = 41;
 
   function labelPrefix(label) {
     const match = canonicalLabel(label).match(/^([A-Za-z]+)/);
@@ -243,7 +200,7 @@
 
   function categoryFromLabel(electrode) {
     const lab = canonicalLabel(electrode.label);
-    const override = regionOverride(lab);
+    const override = REGION_OVERRIDES[lab];
     if (override?.category) return override.category;
 
     const denseFamily = denseRowFamily(lab);
@@ -296,7 +253,7 @@
 
   function inferScalpLocation(electrode) {
     const lab = canonicalLabel(electrode.label);
-    const override = regionOverride(lab);
+    const override = REGION_OVERRIDES[lab];
     if (override?.scalp) return override.scalp;
     const anatomical = anatomicalCoordinate(electrode);
     const hemisphere = inferHemisphere(lab, anatomical.x).replace(" hemisphere", "");
@@ -325,7 +282,7 @@
     const suppliedRegion = String(electrode.region || "").trim();
     const suppliedFunction = String(electrode.functionText || "").trim();
     const suppliedUrl = String(electrode.regionUrl || "").trim();
-    const knownInternationalLabel = Boolean(regionOverride(electrode.label)) || isInternationalStyleLabel(electrode.label);
+    const knownInternationalLabel = Boolean(REGION_OVERRIDES[canonicalLabel(electrode.label)]) || isInternationalStyleLabel(electrode.label);
     const inferredSource = knownInternationalLabel
       ? "Broad label-based international scalp-position rule informed by published 10–20/10–10 scalp-to-cortex correspondence studies"
       : "Broad coordinate-based anterior/posterior and medial/lateral rule; no cap-specific cortical atlas lookup was performed";
@@ -395,7 +352,6 @@
       presetId: row.presetId || "",
       source,
       index,
-      visibilityId: `${source}:${index}:${labelKey(label)}`,
       hemisphere: inferHemisphere(label, Number.isFinite(projectedX) ? projectedX : x)
     };
   }
@@ -490,75 +446,12 @@
     return isFinitePoint(point) ? point : null;
   }
 
-  /*
-   * Keep the coordinate used for scientific readouts and distance calculations
-   * separate from the nearest-vertex scalp coordinate used by the renderer.
-   * Native MNI/fsaverage montages must retain their exact published positions;
-   * snapping them to the display mesh can move peripheral electrodes by several
-   * millimetres. For registered non-MNI data, mniPre* is the transformed point
-   * before that display-only surface snap.
-   */
-  function analysisMniCoordinate(electrode) {
-    if (!electrode) return null;
-
-    const supplied = {
-      x: finiteNumberOrNull(electrode.providedMniX),
-      y: finiteNumberOrNull(electrode.providedMniY),
-      z: finiteNumberOrNull(electrode.providedMniZ)
-    };
-    if (isFinitePoint(supplied)) return supplied;
-
-    const source = sourceCoordinate(electrode);
-    if (electrode.mniCompatible === true && isFinitePoint(source)) return source;
-
-    const registered = {
-      x: finiteNumberOrNull(electrode.mniPreX),
-      y: finiteNumberOrNull(electrode.mniPreY),
-      z: finiteNumberOrNull(electrode.mniPreZ)
-    };
-    if (isFinitePoint(registered)) return registered;
-
-    return mniCoordinate(electrode);
-  }
-
-  function hasAnalysisMniCoordinate(electrode) {
-    return Boolean(analysisMniCoordinate(electrode));
-  }
-
-  function analysisMniKind(electrode) {
-    const supplied = {
-      x: finiteNumberOrNull(electrode?.providedMniX),
-      y: finiteNumberOrNull(electrode?.providedMniY),
-      z: finiteNumberOrNull(electrode?.providedMniZ)
-    };
-    if (isFinitePoint(supplied)) return "csv-supplied";
-    if (electrode?.mniCompatible === true && isFinitePoint(sourceCoordinate(electrode))) return "native";
-    const registered = {
-      x: finiteNumberOrNull(electrode?.mniPreX),
-      y: finiteNumberOrNull(electrode?.mniPreY),
-      z: finiteNumberOrNull(electrode?.mniPreZ)
-    };
-    if (isFinitePoint(registered)) return "estimated";
-    return mniCoordinate(electrode) ? "surface-fallback" : "unavailable";
-  }
-
-  function analysisMniMethod(electrode) {
-    const kind = analysisMniKind(electrode);
-    if (kind === "native") return "Source coordinate already in MNI/fsaverage-compatible space; used directly.";
-    if (kind === "csv-supplied") return "MNI/fsaverage coordinate supplied explicitly in the CSV; used directly.";
-    if (kind === "estimated") {
-      return `Estimated using ${electrode.mniProjectionBasis || "template registration"}; analysis uses the registered coordinate before the rendering-only scalp snap.`;
-    }
-    if (kind === "surface-fallback") return "Nearest available fsaverage scalp coordinate (fallback).";
-    return "MNI/fsaverage coordinate unavailable.";
-  }
-
   function hasMniProjection(electrode) {
     return Boolean(mniCoordinate(electrode));
   }
 
   function anatomicalCoordinate(electrode) {
-    return analysisMniCoordinate(electrode) || sourceCoordinate(electrode);
+    return mniCoordinate(electrode) || sourceCoordinate(electrode);
   }
 
   function centroid(points) {
@@ -1028,14 +921,13 @@
       const dy = cmp.y - ref.y;
       const dz = cmp.z - ref.z;
       const distance = Math.hypot(dx, dy, dz);
-      const referenceMni = analysisMniCoordinate(ref);
-      const comparisonMni = analysisMniCoordinate(cmp);
+      const referenceMni = mniCoordinate(ref);
+      const comparisonMni = mniCoordinate(cmp);
       const mniDx = referenceMni && comparisonMni ? comparisonMni.x - referenceMni.x : null;
       const mniDy = referenceMni && comparisonMni ? comparisonMni.y - referenceMni.y : null;
       const mniDz = referenceMni && comparisonMni ? comparisonMni.z - referenceMni.z : null;
       const mniDistance = [mniDx, mniDy, mniDz].every(Number.isFinite) ? Math.hypot(mniDx, mniDy, mniDz) : null;
-      const framesEquivalent = (ref.mniCompatible === true && cmp.mniCompatible === true)
-        || String(ref.coordinateFrame || "").trim().toLowerCase() === String(cmp.coordinateFrame || "").trim().toLowerCase();
+      const framesEquivalent = sourceFramesComparable(ref, cmp);
       rows.push({
         label: ref.label, reference: ref, comparison: cmp,
         dx, dy, dz, distance,
@@ -1064,24 +956,24 @@
   }
 
   function projectionAvailabilityText(electrodes) {
-    const available = electrodes.filter(hasAnalysisMniCoordinate).length;
+    const available = electrodes.filter(hasMniProjection).length;
     if (!electrodes.length) return "No electrodes loaded.";
-    if (!available) return "MNI/fsaverage coordinate unavailable.";
-    return `${available}/${electrodes.length} electrodes have an MNI/fsaverage-compatible coordinate.`;
+    if (!available) return "Template MNI/fsaverage projection unavailable.";
+    return `${available}/${electrodes.length} electrodes have a template MNI/fsaverage scalp coordinate.`;
   }
 
   function presetProjectionDescription(preset) {
     if (!preset) return "";
     if (preset.mniCompatible === true) {
-      return "The source coordinates are already in MNI/fsaverage-compatible MRI space and are used directly; no second template projection is needed.";
+      return "The source coordinates are already in MNI/fsaverage-compatible MRI space. The second readout is the corresponding nearest point on the bundled fsaverage scalp surface.";
     }
     if (preset.mniProjectionAvailable !== false && preset.mniProjectionMethod) {
       const residual = Number.isFinite(preset.mniRegistrationRmsResidualMm)
         ? ` Registration RMS residual: ${Number(preset.mniRegistrationRmsResidualMm).toFixed(2)} mm.`
         : "";
-      return `The source coordinates are not native MNI. A separate estimated MNI/fsaverage-compatible coordinate is provided using ${preset.mniProjectionBasis || "template registration"}.${residual}`;
+      return `The source coordinates are not native MNI. A separate visualization-oriented template MNI/fsaverage estimate is provided using ${preset.mniProjectionBasis || "template registration"}.${residual}`;
     }
-    return "The source coordinates are not assumed to be MNI, and no MNI/fsaverage-compatible coordinate is available for this preset.";
+    return "The source coordinates are not assumed to be MNI, and no template-MNI projection is available for this preset.";
   }
 
   function updateMontageDescription() {
@@ -1117,16 +1009,21 @@
     custom.disabled = true;
     dom["montage-select"].appendChild(custom);
     dom["montage-select"].value = MONTAGES[state.referencePresetId] ? state.referencePresetId : DEFAULT_MONTAGE_ID;
+    const comparisonSelect = dom["comparison-montage-select"];
+    comparisonSelect.innerHTML = '<option value="">No comparison cap</option>' + dom["montage-select"].innerHTML;
+    comparisonSelect.value = state.comparisonPresetId || "";
     updateMontageDescription();
   }
 
   function loadMontagePreset(presetId) {
     const preset = MONTAGES[presetId];
     if (!preset) return;
+    state.loadGeneration.reference += 1;
     state.reference = clonePresetCoordinates(presetId, "reference");
     state.referenceName = preset.label;
     state.referencePresetId = presetId;
     state.referenceIsDefault = true;
+    state.capContext.reference = {};
     state.hidden.reference.clear();
     state.lastClicked = null;
     state.hoverPreview = null;
@@ -1136,9 +1033,9 @@
     dom["reference-status-pill"].className = "status-pill ready";
     setFileStatus("reference", `${state.reference.length} built-in electrodes loaded. Source frame: ${preset.coordinateFrame || "template coordinates"}. ${projectionAvailabilityText(state.reference)}`);
     updateMontageDescription();
+    resetFitForData("reference");
     renderVisibilityList();
     scheduleRender(0);
-    scheduleDistanceMatrixRender(0);
   }
 
   function capElectrodes(cap) {
@@ -1152,23 +1049,16 @@
   }
 
   function isElectrodeVisible(cap, electrodeOrLabel) {
-    const electrode = typeof electrodeOrLabel === "string"
-      ? capElectrodes(cap).find((candidate) => labelKey(candidate.label) === labelKey(electrodeOrLabel))
-      : electrodeOrLabel;
-    return !electrode || !state.hidden[cap].has(electrodeVisibilityId(electrode));
+    const label = typeof electrodeOrLabel === "string" ? electrodeOrLabel : electrodeOrLabel.label;
+    return !state.hidden[cap].has(labelKey(label));
   }
 
   function visibleElectrodes(cap) {
     return capElectrodes(cap).filter((electrode) => isElectrodeVisible(cap, electrode));
   }
 
-  function scheduleDistanceMatrixForCaps(caps, delay = 35) {
-    const selectedCap = dom["distance-cap-select"]?.value === "comparison" ? "comparison" : "reference";
-    if (Array.from(caps || []).includes(selectedCap)) scheduleDistanceMatrixRender(delay);
-  }
-
   function pruneHidden(cap) {
-    const valid = new Set(capElectrodes(cap).map(electrodeVisibilityId));
+    const valid = new Set(capElectrodes(cap).map((electrode) => labelKey(electrode.label)));
     Array.from(state.hidden[cap]).forEach((key) => { if (!valid.has(key)) state.hidden[cap].delete(key); });
   }
 
@@ -1197,14 +1087,10 @@
   }
 
   function setVisibilityForLabel(label, visible, caps) {
+    const key = labelKey(label);
     caps.forEach((cap) => {
-      capElectrodes(cap)
-        .filter((electrode) => labelKey(electrode.label) === labelKey(label))
-        .forEach((electrode) => {
-          const id = electrodeVisibilityId(electrode);
-          if (visible) state.hidden[cap].delete(id);
-          else state.hidden[cap].add(id);
-        });
+      if (visible) state.hidden[cap].delete(key);
+      else state.hidden[cap].add(key);
     });
   }
 
@@ -1212,10 +1098,7 @@
     pruneHidden("reference");
     pruneHidden("comparison");
     const caps = selectedVisibilityCaps();
-    const searchTokens = String(dom["visibility-search-input"].value || "")
-      .split(/[,;\n]+/)
-      .map(labelKey)
-      .filter(Boolean);
+    const search = String(dom["visibility-search-input"].value || "").trim().toLowerCase();
     const labels = new Map();
     caps.forEach((cap) => {
       capElectrodes(cap).forEach((electrode) => {
@@ -1224,12 +1107,8 @@
         labels.get(key).caps.push(cap);
       });
     });
-    const labelKeys = new Set(labels.keys());
     const entries = Array.from(labels.values())
-      .filter((entry) => !searchTokens.length || searchTokens.some((token) => {
-        const entryKey = labelKey(entry.label);
-        return labelKeys.has(token) ? entryKey === token : entryKey.includes(token);
-      }))
+      .filter((entry) => !search || entry.label.toLowerCase().includes(search))
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" }));
     dom["electrode-visibility-list"].innerHTML = "";
     if (!entries.length) {
@@ -1250,7 +1129,6 @@
         setVisibilityForLabel(entry.label, checkbox.checked, entry.caps);
         renderVisibilityList();
         scheduleRender(0);
-        scheduleDistanceMatrixForCaps(entry.caps);
       });
       const label = document.createElement("span");
       label.className = "visibility-electrode-label";
@@ -1269,112 +1147,161 @@
     const caps = selectedVisibilityCaps();
     caps.forEach((cap) => {
       if (action === "show") state.hidden[cap].clear();
-      else if (action === "hide") capElectrodes(cap).forEach((electrode) => state.hidden[cap].add(electrodeVisibilityId(electrode)));
+      else if (action === "hide") capElectrodes(cap).forEach((electrode) => state.hidden[cap].add(labelKey(electrode.label)));
       else if (action === "invert") capElectrodes(cap).forEach((electrode) => {
-        const key = electrodeVisibilityId(electrode);
+        const key = labelKey(electrode.label);
         if (state.hidden[cap].has(key)) state.hidden[cap].delete(key);
         else state.hidden[cap].add(key);
       });
     });
     renderVisibilityList();
     scheduleRender(0);
-    scheduleDistanceMatrixForCaps(caps);
   }
 
-  function selectedFitElectrodes() {
-    const source = dom["fit-source-select"].value;
-    if (source === "comparison" && state.comparison.length) return state.comparison;
-    if (source === "average" && state.comparison.length) {
-      const refMap = mapByLabel(state.reference);
-      const cmpMap = mapByLabel(state.comparison);
-      const keys = new Set([...refMap.keys(), ...cmpMap.keys()]);
-      const result = [];
-      keys.forEach((key) => {
-        const ref = refMap.get(key);
-        const cmp = cmpMap.get(key);
-        if (ref && cmp) {
-          result.push(makeElectrode({ label: ref.label, x: (ref.x + cmp.x) / 2, y: (ref.y + cmp.y) / 2, z: (ref.z + cmp.z) / 2, region: ref.region || cmp.region }, "fit", result.length));
-        } else if (ref) result.push({ ...ref, source: "fit" });
-        else if (cmp) result.push({ ...cmp, source: "fit" });
+  const FITTING = window.EEGHeadFitting;
+  const surfaceCache = new Map();
+  let fitCache = new WeakMap();
+  let displayCache = null;
+
+  function resetFitForData(cap) {
+    fitCache = new WeakMap();
+    displayCache = null;
+    state.dataRevision += 1;
+    dom["head-scale-range"].value = "1";
+    dom["auto-fit-checkbox"].checked = true;
+    updateRangeOutputs();
+    syncHeadControls();
+  }
+
+  function syncHeadControls() {
+    const hasComparison = state.comparison.length > 0;
+    dom["fit-source-select"].querySelector('option[value="comparison"]').disabled = !hasComparison;
+    if (!hasComparison) dom["fit-source-select"].value = "reference";
+    dom["comparison-layout-select"].querySelector('option[value="split"]').disabled = !hasComparison;
+    if (!hasComparison) dom["comparison-layout-select"].value = "overlay";
+    dom["comparison-alignment-select"].disabled = !hasComparison || dom["comparison-layout-select"].value === "split";
+    dom["sync-cameras-checkbox"].disabled = !hasComparison || dom["comparison-layout-select"].value !== "split";
+    dom["show-lines-checkbox"].disabled = dom["comparison-layout-select"].value === "split";
+  }
+
+  function getFitSurface(model) {
+    if (!surfaceCache.has(model)) {
+      const base = model === "phantom" ? createPhantomGeometry() : createTemplateGeometry();
+      surfaceCache.set(model, FITTING.createSurface(base));
+    }
+    return surfaceCache.get(model);
+  }
+
+  function buildHeadGeometry(cap = "reference") {
+    const controls = getControlValues(), electrodes = capElectrodes(cap);
+    const key = [controls.headModel, controls.autoFit, controls.headScale].join("|");
+    if (!fitCache.has(electrodes)) fitCache.set(electrodes, new Map());
+    const cache = fitCache.get(electrodes);
+    if (cache.has(key)) return cache.get(key);
+    const surface = getFitSurface(controls.headModel);
+    const fit = FITTING.fitHead(electrodes, {
+      surface, canonicalMap: canonicalMniMap(),
+      fiducials: state.capContext[cap]?.fiducials || {}, templateFiducials: TEMPLATE_MNI_FIDUCIALS,
+      adaptive: controls.autoFit, overallScale: controls.headScale
+    });
+    const result = { ...surface.geometry, fit, cap,
+      vertices: surface.geometry.vertices.map(vertex => FITTING.apply(vertex, fit.viewTransform)) };
+    cache.set(key, result);
+    return result;
+  }
+
+  function sourceFramesComparable(a, b) {
+    if (!a || !b) return false;
+    if (a.mniCompatible === true && b.mniCompatible === true) return true;
+    if (a.presetId && b.presetId) return a.presetId === b.presetId;
+    const left = String(a.coordinateFrame || "").trim().toLowerCase();
+    const right = String(b.coordinateFrame || "").trim().toLowerCase();
+    return Boolean(left && left === right && !/generic|unknown|not verified|not supplied|uploaded|unregistered/.test(left));
+  }
+
+  function buildDisplayGeometry(controls) {
+    const key = [state.dataRevision, controls.headModel, controls.autoFit, controls.headScale,
+      controls.clearance, controls.projectElectrodes, controls.fitSource, controls.comparisonLayout, controls.comparisonAlignment].join("|");
+    if (displayCache?.key === key) return displayCache.value;
+    const own = { reference: buildHeadGeometry("reference") };
+    if (state.comparison.length) own.comparison = buildHeadGeometry("comparison");
+    const anchorCap = controls.fitSource === "comparison" && own.comparison ? "comparison" : "reference";
+    const anchor = own[anchorCap];
+    const split = controls.comparisonLayout === "split" && Boolean(own.comparison);
+    const positions = { reference: new Map(), comparison: new Map() };
+    let alignment = "Source positions in the selected head's display frame.";
+    let rigid = null, keepSource = true;
+    if (own.comparison && !split) {
+      keepSource = controls.comparisonAlignment === "source" ||
+        (controls.comparisonAlignment === "auto" && sourceFramesComparable(state.reference[0], state.comparison[0]));
+      if (controls.comparisonAlignment === "rigid") {
+        const otherCap = anchorCap === "reference" ? "comparison" : "reference";
+        const targetMap = mapByLabel(capElectrodes(anchorCap));
+        const pairs = capElectrodes(otherCap).map(e => ({ e, target: targetMap.get(labelKey(e.label)) })).filter(p => p.target);
+        rigid = FITTING.fitSimilarity(pairs.map(p => p.e), pairs.map(p => p.target), { allowScale: false });
+        keepSource = false;
+        alignment = rigid ? `Display-only rigid alignment from ${pairs.length} matched labels; size retained, global pose removed.` : "Too few non-collinear matching labels; using separate template-pose estimates.";
+      } else if (keepSource) {
+        alignment = "Both caps retain their source-space relationship; one shared rigid viewing transform is applied.";
+      } else {
+        alignment = "Separate estimated template poses align the heads for display; cap size is retained, absolute pose offsets are removed.";
+      }
+    }
+    if (split) alignment = "Each head is fitted independently and shown upright at the same millimeter scale. Layout position is not a measured displacement.";
+    const caps = own.comparison ? ["reference", "comparison"] : ["reference"];
+    caps.forEach(cap => {
+      const ownHead = own[cap], target = split ? ownHead : anchor;
+      const scene = split && cap === "comparison" ? "scene2" : "scene";
+      capElectrodes(cap).forEach(e => {
+        let p;
+        if (split || cap === anchorCap) p = FITTING.toView(e, ownHead.fit);
+        else if (keepSource) p = FITTING.toView(e, anchor.fit);
+        else if (rigid) p = FITTING.toView(FITTING.apply(e, rigid), anchor.fit);
+        else {
+          p = FITTING.toView(e, ownHead.fit);
+          const centerDelta = FITTING.vector.mul(target.fit.surface.center, target.fit.pose.scale - ownHead.fit.pose.scale);
+          p = FITTING.vector.add(p, centerDelta);
+        }
+        const projected = controls.projectElectrodes ? FITTING.projectViewPoint(p, target.fit, controls.clearance) : { point: p, adjustment: 0 };
+        positions[cap].set(labelKey(e.label), { ...projected, rawView: p, scene, projected: controls.projectElectrodes });
       });
-      return result;
-    }
-    return state.reference;
-  }
-
-  function deriveHeadTransform(fitElectrodes, autoFit, overallScale) {
-    const identity = { scale: [overallScale, overallScale, overallScale], translation: [0, 0, 0], matched: 0, method: "fixed template" };
-    if (!autoFit || !fitElectrodes.length) return identity;
-
-    const canonicalMap = mapByLabel(cloneDefaultCoordinates());
-    const matchedPairs = [];
-    fitElectrodes.forEach((target) => {
-      const canonical = canonicalMap.get(labelKey(target.label));
-      if (canonical) matchedPairs.push({ canonical, target });
     });
-
-    let canonicalPoints;
-    let targetPoints;
-    let method;
-    if (matchedPairs.length >= 4) {
-      canonicalPoints = matchedPairs.map((pair) => pair.canonical);
-      targetPoints = matchedPairs.map((pair) => pair.target);
-      method = `label-based fit (${matchedPairs.length} matched electrodes)`;
-    } else {
-      canonicalPoints = cloneDefaultCoordinates();
-      targetPoints = fitElectrodes;
-      method = `extent-based fit (${matchedPairs.length} matched labels)`;
-    }
-
-    const cCenter = [
-      median(canonicalPoints.map((p) => p.x)),
-      median(canonicalPoints.map((p) => p.y)),
-      median(canonicalPoints.map((p) => p.z))
-    ];
-    const tCenter = [
-      median(targetPoints.map((p) => p.x)),
-      median(targetPoints.map((p) => p.y)),
-      median(targetPoints.map((p) => p.z))
-    ];
-
-    const cRanges = [
-      robustRange(canonicalPoints.map((p) => p.x)),
-      robustRange(canonicalPoints.map((p) => p.y)),
-      robustRange(canonicalPoints.map((p) => p.z))
-    ];
-    const tRanges = [
-      robustRange(targetPoints.map((p) => p.x)),
-      robustRange(targetPoints.map((p) => p.y)),
-      robustRange(targetPoints.map((p) => p.z))
-    ];
-
-    let uniformNumerator = 0;
-    let uniformDenominator = 0;
-    const pairCount = Math.min(canonicalPoints.length, targetPoints.length);
-    for (let index = 0; index < pairCount; index += 1) {
-      const cp = canonicalPoints[index];
-      const tp = targetPoints[index];
-      uniformNumerator += (tp.x - tCenter[0]) ** 2 + (tp.y - tCenter[1]) ** 2 + (tp.z - tCenter[2]) ** 2;
-      uniformDenominator += (cp.x - cCenter[0]) ** 2 + (cp.y - cCenter[1]) ** 2 + (cp.z - cCenter[2]) ** 2;
-    }
-    let uniform = uniformDenominator > 1e-6 ? Math.sqrt(uniformNumerator / uniformDenominator) : 1;
-    uniform = clamp(uniform, 0.68, 1.45);
-    const blend = matchedPairs.length >= 12 ? 0.65 : matchedPairs.length >= 6 ? 0.4 : 0.2;
-    const scale = [0, 1, 2].map((axis) => {
-      const axisRatio = clamp(tRanges[axis] / cRanges[axis], 0.68, 1.45);
-      return clamp(((1 - blend) * uniform + blend * axisRatio) * overallScale, 0.6, 1.65);
+    const heads = split ? [ { ...own.reference, scene: "scene" }, { ...own.comparison, scene: "scene2" } ] : [ { ...anchor, scene: "scene" } ];
+    const statuses = caps.map(cap => {
+      const h = own[cap];
+      return `${cap === "reference" ? "Cap A" : "Cap B"}: ${h.fit.method}. Scale ${h.fit.pose.scale.toFixed(3)}; median unprojected scalp gap ${h.fit.medianAdjustment.toFixed(1)} mm. ${h.fit.warnings.join(" ")}`;
     });
-    const translation = [0, 1, 2].map((axis) => tCenter[axis] - cCenter[axis] * scale[axis]);
-    return { scale, translation, matched: matchedPairs.length, method };
+    const warnings = caps.flatMap(cap => own[cap].fit.warnings);
+    const value = { positions, heads, own, anchorCap, split, alignment, warnings };
+    state.fitStatus = statuses.join("\n\n");
+    state.displayGeometry = value;
+    displayCache = { key, value };
+    return value;
   }
 
-  function transformPoint(point, transform) {
-    return {
-      x: point.x * transform.scale[0] + transform.translation[0],
-      y: point.y * transform.scale[1] + transform.translation[1],
-      z: point.z * transform.scale[2] + transform.translation[2]
-    };
+  function displayCoordinate(cap, electrode) {
+    return state.displayGeometry?.positions[cap]?.get(labelKey(electrode.label)) || { point: sourceCoordinate(electrode), adjustment: 0, scene: "scene", projected: false };
   }
+
+  function loadComparisonPreset(presetId) {
+    const preset = MONTAGES[presetId];
+    if (!preset) return;
+    state.loadGeneration.comparison += 1;
+    state.comparison = clonePresetCoordinates(presetId, "comparison");
+    state.comparisonPresetId = presetId;
+    state.comparisonName = preset.label;
+    state.capContext.comparison = {};
+    state.hidden.comparison.clear();
+    state.lastClicked = null; state.hoverPreview = null;
+    dom["comparison-file-input"].value = "";
+    dom["comparison-montage-select"].value = presetId;
+    dom["comparison-status-pill"].textContent = "Built-in";
+    dom["comparison-status-pill"].className = "status-pill comparison";
+    setFileStatus("comparison", `${state.comparison.length} built-in electrodes loaded. ${projectionAvailabilityText(state.comparison)}`);
+    resetFitForData("comparison");
+    renderVisibilityList(); scheduleRender(0);
+  }
+
 
   function createTemplateGeometry() {
     if (!TEMPLATE_MESH || !Array.isArray(TEMPLATE_MESH.x)) throw new Error("Template scalp asset is missing.");
@@ -1420,77 +1347,7 @@
     return { vertices, i, j, k, source: "analytic head phantom" };
   }
 
-  function meanPoint(points) {
-    if (!points.length) return { x: 0, y: 0, z: 0 };
-    const sums = points.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y, z: acc.z + point.z }), { x: 0, y: 0, z: 0 });
-    return { x: sums.x / points.length, y: sums.y / points.length, z: sums.z / points.length };
-  }
 
-  function dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-  function norm(a) { return Math.hypot(a.x, a.y, a.z); }
-  function subtract(a, b) { return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }; }
-  function addScaled(center, vector, scale) { return { x: center.x + vector.x * scale, y: center.y + vector.y * scale, z: center.z + vector.z * scale }; }
-  function normalize(vector) {
-    const length = norm(vector) || 1;
-    return { x: vector.x / length, y: vector.y / length, z: vector.z / length };
-  }
-
-  function adaptMeshToElectrodes(vertices, electrodes, center, strength, clearance) {
-    if (!electrodes.length || strength <= 0) return vertices;
-    let current = vertices.map((vertex) => ({ ...vertex }));
-    const targetElectrodes = electrodes.filter((e) => [e.x, e.y, e.z].every(Number.isFinite));
-    if (!targetElectrodes.length) return current;
-
-    const iterations = [0.72, 0.48];
-    iterations.forEach((iterationShare) => {
-      const vertexRelative = current.map((vertex) => subtract(vertex, center));
-      const vertexRadius = vertexRelative.map(norm);
-      const vertexDirections = vertexRelative.map(normalize);
-      const targets = [];
-
-      targetElectrodes.forEach((electrode) => {
-        const eVector = subtract(electrode, center);
-        const eRadius = norm(eVector);
-        if (eRadius < 1) return;
-        const eDirection = normalize(eVector);
-        let bestCosine = -Infinity;
-        let bestRadius = 1;
-        let bestProjected = 1;
-        for (let index = 0; index < current.length; index += 1) {
-          const cosine = dot(vertexDirections[index], eDirection);
-          const projected = dot(vertexRelative[index], eDirection);
-          if (cosine > 0.985 && projected > bestProjected) bestProjected = projected;
-          if (cosine > bestCosine) {
-            bestCosine = cosine;
-            bestRadius = vertexRadius[index];
-          }
-        }
-        const surfaceRadius = bestProjected > 1 ? bestProjected : bestRadius;
-        const desiredRadius = Math.max(5, eRadius - clearance);
-        targets.push({ direction: eDirection, ratio: clamp(desiredRadius / Math.max(surfaceRadius, 1), 0.72, 1.28) });
-      });
-
-      const sigma = 0.27;
-      current = current.map((vertex, index) => {
-        const direction = vertexDirections[index];
-        let weightedRatio = 0.28;
-        let weightSum = 0.28;
-        targets.forEach((target) => {
-          const cosine = clamp(dot(direction, target.direction), -1, 1);
-          if (cosine < 0.72) return;
-          const angle = Math.acos(cosine);
-          const weight = Math.exp(-0.5 * (angle / sigma) ** 2);
-          weightedRatio += weight * target.ratio;
-          weightSum += weight;
-        });
-        const averageRatio = weightedRatio / weightSum;
-        const coverage = clamp((weightSum - 0.28) / 0.45, 0, 1);
-        const factor = clamp(1 + strength * iterationShare * coverage * (averageRatio - 1), 0.82, 1.18);
-        return addScaled(center, vertexRelative[index], factor);
-      });
-    });
-    return current;
-  }
 
   function hexToRgb(hex) {
     const normalized = String(hex).replace("#", "");
@@ -1528,27 +1385,17 @@
     });
   }
 
-  function buildHeadGeometry() {
-    const controls = getControlValues();
-    const base = controls.headModel === "phantom" ? createPhantomGeometry() : createTemplateGeometry();
-    const fitElectrodes = selectedFitElectrodes();
-    const transform = deriveHeadTransform(fitElectrodes, controls.autoFit, controls.headScale);
-    let vertices = base.vertices.map((vertex) => transformPoint(vertex, transform));
-    const baseCenter = meanPoint(base.vertices);
-    const center = transformPoint(baseCenter, transform);
-    if (controls.autoFit && controls.warpStrength > 0) {
-      vertices = adaptMeshToElectrodes(vertices, fitElectrodes, center, controls.warpStrength, controls.clearance);
-    }
-    state.fitStatus = `${base.source}; ${transform.method}; adaptive strength ${Math.round(controls.warpStrength * 100)}%`;
-    return { ...base, vertices, center, transform };
-  }
+
 
   function getControlValues() {
     return {
       headModel: dom["head-model-select"].value,
       autoFit: dom["auto-fit-checkbox"].checked,
       fitSource: dom["fit-source-select"].value,
-      warpStrength: Number(dom["warp-strength-range"].value),
+      projectElectrodes: dom["project-electrodes-checkbox"].checked,
+      comparisonLayout: dom["comparison-layout-select"].value,
+      comparisonAlignment: dom["comparison-alignment-select"].value,
+      syncCameras: dom["sync-cameras-checkbox"].checked,
       clearance: Number(dom["clearance-range"].value),
       headScale: Number(dom["head-scale-range"].value),
       headOpacity: Number(dom["head-opacity-range"].value),
@@ -1574,14 +1421,10 @@
   function electrodeCustomData(electrode, cap, comparisonLookup) {
     const comparison = comparisonLookup.get(labelKey(electrode.label));
     const info = inferElectrodeInfo(electrode);
-    const mni = analysisMniCoordinate(electrode);
-    const mniKind = analysisMniKind(electrode);
-    const coordinateHover = mniKind === "native"
-      ? `MNI/fsaverage coordinate: x ${electrode.x.toFixed(2)} · y ${electrode.y.toFixed(2)} · z ${electrode.z.toFixed(2)} mm`
-      : `Source: x ${electrode.x.toFixed(2)} · y ${electrode.y.toFixed(2)} · z ${electrode.z.toFixed(2)} mm` +
-        (mni
-          ? `<br>${mniKind === "csv-supplied" ? "CSV-provided MNI" : "Estimated template-space"}: x ${mni.x.toFixed(2)} · y ${mni.y.toFixed(2)} · z ${mni.z.toFixed(2)} mm`
-          : "<br>MNI/fsaverage-compatible coordinate unavailable");
+    const mni = mniCoordinate(electrode);
+    const mniHover = mni
+      ? `Template MNI/fsaverage scalp: x ${mni.x.toFixed(2)} · y ${mni.y.toFixed(2)} · z ${mni.z.toFixed(2)} mm`
+      : "Template MNI/fsaverage scalp projection unavailable";
     return [
       electrode.label, cap, electrode.x, electrode.y, electrode.z,
       info.scalp, info.region, info.functions, electrode.hemisphere,
@@ -1601,7 +1444,7 @@
       Number.isFinite(electrode.mniProjectionDistanceMm) ? electrode.mniProjectionDistanceMm : null,
       Number.isFinite(electrode.mniRegistrationResidualMm) ? electrode.mniRegistrationResidualMm : null,
       electrode.mniProjectionWarning || "",
-      coordinateHover,
+      mniHover,
       comparison && Number.isFinite(comparison.mniDistance) ? comparison.mniDistance : null,
       comparison && Number.isFinite(comparison.mniDx) ? comparison.mniDx : null,
       comparison && Number.isFinite(comparison.mniDy) ? comparison.mniDy : null,
@@ -1611,14 +1454,15 @@
       comparison ? comparison.comparison.coordinateFrame : "",
       JSON.stringify(info.references || []),
       info.evidenceLevel || "",
-      electrodeVisibilityId(electrode)
+      displayCoordinate(cap, electrode).projected ? `Display-only scalp adjustment: ${displayCoordinate(cap, electrode).adjustment.toFixed(2)} mm. Source coordinates above are unchanged.` : "Raw-coordinate display (only a rigid viewing transform)."
     ];
   }
 
   function makeHoverTemplate(capLabel) {
     return `<b>%{customdata[0]}</b> · ${capLabel}<br>` +
+      `Source: x %{customdata[2]:.2f} · y %{customdata[3]:.2f} · z %{customdata[4]:.2f} mm<br>` +
       `%{customdata[31]}<br>` +
-      `%{customdata[5]}<br>%{customdata[6]}<br>` +
+      `%{customdata[5]}<br>%{customdata[6]}<br>%{customdata[41]}<br>` +
       `<extra></extra>`;
   }
 
@@ -1648,13 +1492,12 @@
 
     const hitbox = {
       type: "scatter3d",
-      uid: `${cap}-selection-area`,
       mode: "markers",
       name: `${cap} selection area`,
-      ids: electrodes.map(electrodeVisibilityId),
-      x: electrodes.map((electrode) => electrode.x),
-      y: electrodes.map((electrode) => electrode.y),
-      z: electrodes.map((electrode) => electrode.z),
+      scene: displayCoordinate(cap, electrodes[0]).scene,
+      x: electrodes.map((electrode) => displayCoordinate(cap, electrode).point.x),
+      y: electrodes.map((electrode) => displayCoordinate(cap, electrode).point.y),
+      z: electrodes.map((electrode) => displayCoordinate(cap, electrode).point.z),
       customdata,
       hovertemplate,
       marker: { size: Math.max(controls.hitboxSize, size + 4), color, opacity: 0.025 },
@@ -1664,13 +1507,12 @@
 
     const visible = {
       type: "scatter3d",
-      uid: `${cap}-electrodes`,
       mode: controls.showLabels ? "markers+text" : "markers",
       name: cap === "reference" ? state.referenceName : state.comparisonName,
-      ids: electrodes.map(electrodeVisibilityId),
-      x: electrodes.map((electrode) => electrode.x),
-      y: electrodes.map((electrode) => electrode.y),
-      z: electrodes.map((electrode) => electrode.z),
+      scene: displayCoordinate(cap, electrodes[0]).scene,
+      x: electrodes.map((electrode) => displayCoordinate(cap, electrode).point.x),
+      y: electrodes.map((electrode) => displayCoordinate(cap, electrode).point.y),
+      z: electrodes.map((electrode) => displayCoordinate(cap, electrode).point.z),
       text: electrodes.map((electrode) => electrode.label),
       textposition: "top center",
       textfont: { size: controls.fontSize, color: controls.labelColor },
@@ -1686,14 +1528,13 @@
   function displacementTrace(rows, controls) {
     const x = []; const y = []; const z = [];
     rows.forEach((row) => {
-      x.push(row.reference.x, row.comparison.x, null);
-      y.push(row.reference.y, row.comparison.y, null);
-      z.push(row.reference.z, row.comparison.z, null);
+      const a = displayCoordinate("reference", row.reference).point, b = displayCoordinate("comparison", row.comparison).point;
+      x.push(a.x, b.x, null); y.push(a.y, b.y, null); z.push(a.z, b.z, null);
     });
     return {
       type: "scatter3d",
       mode: "lines",
-      name: "Cap displacement",
+      name: "Matched labels (display links)",
       x, y, z,
       hoverinfo: "skip",
       line: { color: `rgba(78, 86, 102, ${controls.lineOpacity})`, width: 3 },
@@ -1705,16 +1546,14 @@
     const selected = state.lastClicked || state.hoverPreview;
     if (!selected) return null;
     const source = capElectrodes(selected.cap);
-    const electrode = source.find((candidate) => selected.id
-      ? electrodeVisibilityId(candidate) === selected.id
-      : labelKey(candidate.label) === labelKey(selected.label));
+    const electrode = source.find((candidate) => labelKey(candidate.label) === labelKey(selected.label));
     if (!electrode || !isElectrodeVisible(selected.cap, electrode)) return null;
     return {
       type: "scatter3d",
       mode: "markers",
       name: "Selected electrode",
-      ids: [electrodeVisibilityId(electrode)],
-      x: [electrode.x], y: [electrode.y], z: [electrode.z],
+      x: [displayCoordinate(selected.cap, electrode).point.x], y: [displayCoordinate(selected.cap, electrode).point.y], z: [displayCoordinate(selected.cap, electrode).point.z],
+      scene: displayCoordinate(selected.cap, electrode).scene,
       customdata: [electrodeCustomData(electrode, selected.cap, comparisonLookup)],
       hovertemplate: makeHoverTemplate("Selected"),
       marker: { size: 14, color: "rgba(255,255,255,0.12)", line: { color: "#111827", width: 5 }, opacity: 1 },
@@ -1722,214 +1561,93 @@
     };
   }
 
-  function buildPlotData() {
-    state.comparisonRows = computeComparison(state.reference, state.comparison);
-    const comparisonLookup = comparisonMapByLabel(state.comparisonRows);
-    const controls = getControlValues();
-    const head = buildHeadGeometry();
-    const traces = [];
-    const visibleReference = visibleElectrodes("reference");
-    const visibleComparison = visibleElectrodes("comparison");
-    const visibleRows = state.comparisonRows.filter((row) => isElectrodeVisible("reference", row.reference) && isElectrodeVisible("comparison", row.comparison));
-
-    traces.push({
-      type: "mesh3d",
-      name: controls.headModel === "template" ? "Template scalp" : "Head phantom",
-      x: head.vertices.map((vertex) => vertex.x),
-      y: head.vertices.map((vertex) => vertex.y),
-      z: head.vertices.map((vertex) => vertex.z),
+  function headTrace(head, controls) {
+    return {
+      type: "mesh3d", scene: head.scene,
+      name: head.cap === "comparison" ? "Comparison head" : "Reference head",
+      x: head.vertices.map(v => v.x), y: head.vertices.map(v => v.y), z: head.vertices.map(v => v.z),
       i: head.i, j: head.j, k: head.k,
-      vertexcolor: headVertexColors(head.vertices, controls.headColor),
-      opacity: controls.headOpacity,
-      flatshading: false,
-      hoverinfo: "skip",
+      vertexcolor: headVertexColors(head.vertices, controls.headColor), opacity: controls.headOpacity,
+      flatshading: false, hoverinfo: "skip",
       lighting: { ambient: 0.58, diffuse: 0.78, specular: 0.24, roughness: 0.72, fresnel: 0.08 },
       lightposition: { x: 180, y: 260, z: 380 },
       contour: { show: controls.headContours, color: blendColor(controls.headColor, { r: 40, g: 45, b: 55 }, 0.32), width: 1 },
-      showscale: false,
-      showlegend: false
-    });
+      showscale: false, showlegend: false
+    };
+  }
 
-    if (controls.showLines && visibleRows.length) traces.push(displacementTrace(visibleRows, controls));
-    traces.push(...makeCapTraces(visibleReference, "reference", controls.referenceColor, controls.referenceSize, controls.referenceOpacity, controls, comparisonLookup, false));
-    traces.push(...makeCapTraces(visibleComparison, "comparison", controls.comparisonColor, controls.comparisonSize, controls.comparisonOpacity, controls, comparisonLookup, controls.colorByDistance));
-    const highlight = selectedHighlightTrace(comparisonLookup);
-    if (highlight) traces.push(highlight);
-    return { traces, controls, head };
+  function buildPlotData() {
+    state.comparisonRows = computeComparison(state.reference, state.comparison);
+    const lookup = comparisonMapByLabel(state.comparisonRows), controls = getControlValues();
+    syncHeadControls();
+    const display = buildDisplayGeometry(controls);
+    const traces = display.heads.map(h => headTrace(h, controls));
+    const rows = state.comparisonRows.filter(row => isElectrodeVisible("reference", row.reference) && isElectrodeVisible("comparison", row.comparison));
+    if (controls.showLines && rows.length && !display.split) traces.push(displacementTrace(rows, controls));
+    traces.push(...makeCapTraces(visibleElectrodes("reference"), "reference", controls.referenceColor, controls.referenceSize, controls.referenceOpacity, controls, lookup));
+    traces.push(...makeCapTraces(visibleElectrodes("comparison"), "comparison", controls.comparisonColor, controls.comparisonSize, controls.comparisonOpacity, controls, lookup, controls.colorByDistance));
+    const highlight = selectedHighlightTrace(lookup); if (highlight) traces.push(highlight);
+    dom["eeg-plot"].classList.toggle("two-heads", display.split);
+    dom["eeg-plot"].classList.toggle("stacked-heads", display.split && dom["eeg-plot"].clientWidth < 700);
+    dom["display-mode-status"].textContent = `${display.split ? "Two independently fitted heads" : `One shared head fitted to ${display.anchorCap === "reference" ? "Cap A (reference)" : "Cap B (comparison)"}`}. ${display.alignment} ${controls.projectElectrodes ? "Markers are projected to the scalp for display; links are not measurement rulers." : "Raw-coordinate view: scalp projection is off, so true scalp gaps remain visible."}`;
+    dom["comparison-frame-note"].textContent = state.comparison.length && !sourceFramesComparable(state.reference[0], state.comparison[0])
+      ? "Source frames are not known to match. Source-space distances below are arithmetic differences, not validated physical displacements. Matching labels alone does not verify equivalent sensor definitions across manufacturers. Display alignment/projection does not change these numbers."
+      : "Source distances use unmodified coordinates. Head selection, layout and display projection never change these values; matching frame declarations are not independent registration verification.";
+    return { traces, controls, display };
   }
 
   function plotLayout(controls) {
-    const camera = copyCamera(state.currentCamera, CAMERA_VIEWS[state.currentView] || CAMERA_VIEWS.default);
-    return {
-      autosize: true,
-      margin: { l: 0, r: controls.colorByDistance && state.comparison.length ? 78 : 12, t: 10, b: 0 },
-      paper_bgcolor: controls.backgroundColor,
-      plot_bgcolor: controls.backgroundColor,
-      hovermode: "closest",
-      uirevision: "eeg-cap-viewer-camera-v1",
-      legend: {
-        x: 0.015, y: 0.985, xanchor: "left", yanchor: "top",
-        bgcolor: "rgba(255,255,255,0.72)", bordercolor: "rgba(120,130,145,0.35)", borderwidth: 1,
-        font: { size: 11 }
-      },
-      scene: {
-        camera,
-        dragmode: "orbit",
-        aspectmode: "data",
-        bgcolor: controls.backgroundColor,
-        xaxis: { visible: false, title: "X" },
-        yaxis: { visible: false, title: "Y" },
-        zaxis: { visible: false, title: "Z" }
-      }
+    const display = state.displayGeometry;
+    const split = display.split;
+    const narrow = dom["eeg-plot"].clientWidth < 700;
+    const all = display.heads.flatMap(h => h.vertices);
+    if (!controls.projectElectrodes) {
+      for (const cap of ["reference", "comparison"]) display.positions[cap].forEach(p => all.push(p.point));
+    }
+    const bounds = {};
+    for (const axis of ["x", "y", "z"]) {
+      let low = Infinity, high = -Infinity;
+      all.forEach(p => { low = Math.min(low, p[axis]); high = Math.max(high, p[axis]); });
+      const pad = Math.max(10, (high - low) * 0.08);
+      bounds[axis] = [low - pad, high + pad];
+    }
+    const spans = Object.fromEntries(["x", "y", "z"].map(axis => [axis, bounds[axis][1] - bounds[axis][0]]));
+    const spanUnit = Math.cbrt(spans.x * spans.y * spans.z);
+    const aspectratio = { x: spans.x / spanUnit, y: spans.y / spanUnit, z: spans.z / spanUnit };
+    const camera = state.camera || CAMERA_VIEWS[state.currentView] || CAMERA_VIEWS.default;
+    const scene = (domain, cam) => ({
+      domain, camera: JSON.parse(JSON.stringify(cam)), dragmode: "orbit", aspectmode: "manual", aspectratio: { ...aspectratio }, bgcolor: controls.backgroundColor,
+      xaxis: { visible: false, title: "Display X (mm)", range: bounds.x, autorange: false },
+      yaxis: { visible: false, title: "Display Y (mm)", range: bounds.y, autorange: false },
+      zaxis: { visible: false, title: "Display Z (mm)", range: bounds.z, autorange: false }
+    });
+    const layout = {
+      autosize: true, margin: { l: 0, r: controls.colorByDistance && state.comparison.length ? 70 : 10, t: split ? 40 : 10, b: 0 },
+      paper_bgcolor: controls.backgroundColor, plot_bgcolor: controls.backgroundColor, hovermode: "closest",
+      uirevision: `eeg-head-fit-v12-${state.dataRevision}-${split}-${narrow}`,
+      legend: { x: 0.015, y: split ? -0.015 : 0.985, xanchor: "left", yanchor: split ? "top" : "top",
+        orientation: split ? "h" : "v", bgcolor: "rgba(255,255,255,0.72)", bordercolor: "rgba(120,130,145,0.35)", borderwidth: 1, font: { size: 11 } },
+      scene: scene(split ? (narrow ? { x: [0,1], y: [0.53,1] } : { x: [0,0.48], y: [0,1] }) : { x: [0,1], y: [0,1] }, camera)
     };
+    if (split) {
+      layout.scene2 = scene(narrow ? { x: [0,1], y: [0,0.47] } : { x: [0.52,1], y: [0,1] }, controls.syncCameras ? camera : state.comparisonCamera || camera);
+      layout.margin.b = 45;
+      layout.annotations = ["reference", "comparison"].map((cap,i) => ({
+        text: `${cap === "reference" ? "Cap A: reference" : "Cap B: comparison"}${display.anchorCap === cap ? " <b>(display reference)</b>" : ""}`,
+        xref: "paper", yref: "paper", x: narrow ? 0.5 : (i ? 0.76 : 0.24), y: narrow && i ? 0.49 : 1.04,
+        showarrow: false, font: { size: 12, color: cap === "reference" ? controls.referenceColor : controls.comparisonColor }
+      }));
+    }
+    return layout;
   }
+
 
   const PLOT_CONFIG = {
     responsive: true,
     displaylogo: false,
     scrollZoom: true,
-    modeBarButtonsToRemove: ["sendDataToCloud", "hoverClosest3d", "toImage"]
+    modeBarButtonsToRemove: ["sendDataToCloud", "hoverClosest3d"]
   };
-
-  function cameraFromRelayout(update) {
-    if (!update || typeof update !== "object") return null;
-    if (update["scene.camera"] && typeof update["scene.camera"] === "object") {
-      return copyCamera(update["scene.camera"], state.currentCamera);
-    }
-    const next = copyCamera(state.currentCamera);
-    let changed = false;
-    Object.entries(update).forEach(([key, value]) => {
-      const pointMatch = key.match(/^scene\.camera\.(eye|up|center)\.(x|y|z)$/);
-      if (pointMatch && Number.isFinite(Number(value))) {
-        next[pointMatch[1]][pointMatch[2]] = Number(value);
-        changed = true;
-      } else if (key === "scene.camera.projection.type" && value) {
-        next.projection.type = String(value);
-        changed = true;
-      }
-    });
-    return changed ? next : null;
-  }
-
-  function cameraOrientationLabel(camera = state.currentCamera) {
-    const eye = {
-      x: Number(camera?.eye?.x) || 0,
-      y: Number(camera?.eye?.y) || 0,
-      z: Number(camera?.eye?.z) || 0
-    };
-    const horizontalMaximum = Math.max(Math.abs(eye.x), Math.abs(eye.y));
-    if (Math.abs(eye.z) > Math.max(horizontalMaximum * 1.35, 0.15)) {
-      return eye.z >= 0 ? "Top of head" : "Bottom of head";
-    }
-
-    const anteriorPosterior = eye.y >= 0 ? "Front (nose)" : "Back of head";
-    const lateral = eye.x >= 0 ? "right" : "left";
-    let direction;
-    if (Math.abs(eye.x) >= Math.abs(eye.y) * 0.58 && Math.abs(eye.y) >= Math.abs(eye.x) * 0.58) {
-      direction = `${anteriorPosterior} + patient's ${lateral} side`;
-    } else {
-      direction = Math.abs(eye.y) >= Math.abs(eye.x)
-        ? anteriorPosterior
-        : `Patient's ${lateral} side`;
-    }
-    if (Math.abs(eye.z) >= Math.max(horizontalMaximum * 0.55, 0.15)) {
-      direction += eye.z >= 0 ? " · viewed from above" : " · viewed from below";
-    }
-    return direction;
-  }
-
-  function updateOrientationIndicator(camera = state.currentCamera) {
-    if (!dom["view-orientation-label"]) return;
-    const label = cameraOrientationLabel(camera);
-    dom["view-orientation-label"].textContent = label;
-    dom["view-orientation-indicator"].setAttribute("title", `Viewing from ${label}. Directions refer to the patient's anatomy.`);
-  }
-
-  function liveCamera() {
-    const plot = dom["eeg-plot"];
-    let fromScene = null;
-    try {
-      fromScene = plot?._fullLayout?.scene?._scene?.getCamera?.() || null;
-    } catch (_) {
-      fromScene = null;
-    }
-    const fromLayout = fromScene || plot?._fullLayout?.scene?.camera || state.currentCamera || plot?.layout?.scene?.camera;
-    return copyCamera(fromLayout, state.currentCamera);
-  }
-
-  function setActiveViewButton(view) {
-    document.querySelectorAll(".view-button").forEach((button) => {
-      button.classList.toggle("active", button.dataset.view === view);
-    });
-  }
-
-  async function applyCameraPreset(view) {
-    if (!CAMERA_VIEWS[view]) return;
-    state.currentView = view;
-    state.currentCamera = copyCamera(CAMERA_VIEWS[view]);
-    setActiveViewButton(view);
-    updateOrientationIndicator(state.currentCamera);
-    state.applyingPresetCamera = true;
-    try {
-      await Plotly.relayout(dom["eeg-plot"], { "scene.camera": copyCamera(state.currentCamera) });
-    } finally {
-      state.applyingPresetCamera = false;
-    }
-  }
-
-  function exportBaseName(cap = "reference") {
-    const raw = cap === "comparison"
-      ? state.comparisonName
-      : (state.referencePresetId !== "custom" ? state.referencePresetId : state.referenceName);
-    return String(raw || "eeg_cap")
-      .normalize("NFKD")
-      .replace(/[^A-Za-z0-9_-]+/g, "_")
-      .replace(/^_+|_+$/g, "") || "eeg_cap";
-  }
-
-  function plotImageSize(plot, minimumLongSide = 900) {
-    const bounds = plot.getBoundingClientRect();
-    const measuredWidth = Math.max(1, Math.round(bounds.width || plot.clientWidth || minimumLongSide));
-    const measuredHeight = Math.max(1, Math.round(bounds.height || plot.clientHeight || minimumLongSide));
-    const enlargement = Math.max(1, minimumLongSide / Math.max(measuredWidth, measuredHeight));
-    return {
-      width: Math.round(measuredWidth * enlargement),
-      height: Math.round(measuredHeight * enlargement)
-    };
-  }
-
-  async function downloadCurrentViewPNG() {
-    const button = dom["export-view-button"];
-    const originalText = button.textContent;
-    button.disabled = true;
-    button.textContent = "Preparing PNG…";
-    dom["export-view-status"].textContent = "Capturing the current orientation and zoom…";
-    try {
-      clearTimeout(state.renderTimer);
-      state.renderTimer = null;
-      state.currentCamera = liveCamera();
-      state.applyingPresetCamera = true;
-      await render();
-      await Plotly.relayout(dom["eeg-plot"], { "scene.camera": copyCamera(state.currentCamera) });
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const size = plotImageSize(dom["eeg-plot"], 1000);
-      await Plotly.downloadImage(dom["eeg-plot"], {
-        format: "png",
-        filename: `${exportBaseName()}_current_3d_view`,
-        width: size.width,
-        height: size.height,
-        scale: 2
-      });
-      dom["export-view-status"].textContent = "Saved the current orientation and zoom.";
-    } catch (error) {
-      console.error(error);
-      dom["export-view-status"].textContent = `PNG export failed: ${error.message}`;
-    } finally {
-      state.applyingPresetCamera = false;
-      button.disabled = false;
-      button.textContent = originalText;
-    }
-  }
 
   function scheduleRender(delay = 35) {
     clearTimeout(state.renderTimer);
@@ -1937,6 +1655,8 @@
   }
 
   async function render() {
+    if (state.renderBusy) { state.renderAgain = true; return; }
+    state.renderBusy = true;
     try {
       dom["loading-overlay"].classList.remove("hidden");
       const { traces, controls } = buildPlotData();
@@ -1954,58 +1674,22 @@
       dom["head-model-status"].className = "model-status error";
     } finally {
       dom["loading-overlay"].classList.add("hidden");
+      state.renderBusy = false;
+      if (state.renderAgain) { state.renderAgain = false; scheduleRender(0); }
     }
-  }
-
-  function electrodeSelectionFromPlotEvent(event) {
-    for (const point of Array.from(event?.points || [])) {
-      const data = point?.customdata;
-      if (!Array.isArray(data)) continue;
-      const cap = data[1] === "comparison" ? "comparison" : data[1] === "reference" ? "reference" : "";
-      if (!cap) continue;
-      const pointNumber = Number.isInteger(point.pointNumber)
-        ? point.pointNumber
-        : Number.isInteger(point.pointIndex) ? point.pointIndex : null;
-      const traceId = pointNumber === null
-        ? ""
-        : point.data?.ids?.[pointNumber] || point.fullData?.ids?.[pointNumber] || "";
-      const candidates = [point.id, traceId, data[ELECTRODE_CUSTOMDATA_ID_INDEX]]
-        .map((value) => typeof value === "string" ? value : "")
-        .filter(Boolean);
-      const electrodes = capElectrodes(cap);
-      const id = candidates.find((candidateId) => electrodes.some((electrode) => electrodeVisibilityId(electrode) === candidateId));
-      if (!id) continue;
-      const electrode = electrodes.find((candidate) => electrodeVisibilityId(candidate) === id);
-      if (!electrode) continue;
-      return { data, electrode, selection: { label: electrode.label, cap, id } };
-    }
-    return null;
   }
 
   function bindPlotEvents() {
-    const handleCameraChange = (update) => {
-      const camera = cameraFromRelayout(update);
-      if (!camera) return;
-      state.currentCamera = camera;
-      updateOrientationIndicator(camera);
-      if (!state.applyingPresetCamera) {
-        state.currentView = "custom";
-        setActiveViewButton("custom");
-      }
-    };
-    dom["eeg-plot"].on("plotly_relayouting", handleCameraChange);
-    dom["eeg-plot"].on("plotly_relayout", handleCameraChange);
     dom["eeg-plot"].on("plotly_click", (event) => {
-      const resolved = electrodeSelectionFromPlotEvent(event);
-      if (!resolved) return;
-      const { data, electrode, selection } = resolved;
+      const data = event?.points?.[0]?.customdata;
+      if (!Array.isArray(data)) return;
+      const selection = { label: data[0], cap: data[1] };
       if (state.visibilityEditMode) {
-        state.hidden[selection.cap].add(electrodeVisibilityId(electrode));
+        state.hidden[selection.cap].add(labelKey(selection.label));
         state.lastClicked = null;
         state.hoverPreview = null;
         renderVisibilityList();
         scheduleRender(0);
-        scheduleDistanceMatrixForCaps([selection.cap]);
         return;
       }
       state.lastClicked = selection;
@@ -2015,10 +1699,24 @@
     });
     dom["eeg-plot"].on("plotly_hover", (event) => {
       if (state.visibilityEditMode) return;
-      const resolved = electrodeSelectionFromPlotEvent(event);
-      if (!resolved) return;
-      state.hoverPreview = resolved.selection;
-      updateSelectedCard(resolved.data, true);
+      const data = event?.points?.[0]?.customdata;
+      if (!Array.isArray(data)) return;
+      state.hoverPreview = { label: data[0], cap: data[1] };
+      updateSelectedCard(data, true);
+      updateHeadStatus();
+    });
+    dom["eeg-plot"].on("plotly_relayout", event => {
+      if (state.syncingCamera) return;
+      const a = event?.["scene.camera"], b = event?.["scene2.camera"];
+      if (a) state.camera = a;
+      if (b) state.comparisonCamera = b;
+      if ((a || b) && state.displayGeometry?.split && dom["sync-cameras-checkbox"].checked) {
+        state.camera = a || b;
+        state.comparisonCamera = a || b;
+        state.syncingCamera = true;
+        Promise.resolve(Plotly.relayout(dom["eeg-plot"], { [a ? "scene2.camera" : "scene.camera"]: a || b }))
+          .finally(() => { state.syncingCamera = false; });
+      }
     });
     dom["eeg-plot"].on("plotly_unhover", () => {
       state.hoverPreview = null;
@@ -2030,9 +1728,7 @@
     if (!selection) return null;
     const comparisonLookup = comparisonMapByLabel(state.comparisonRows);
     const electrodes = capElectrodes(selection.cap);
-    const electrode = electrodes.find((candidate) => selection.id
-      ? electrodeVisibilityId(candidate) === selection.id
-      : labelKey(candidate.label) === labelKey(selection.label));
+    const electrode = electrodes.find((candidate) => labelKey(candidate.label) === labelKey(selection.label));
     return electrode ? electrodeCustomData(electrode, selection.cap, comparisonLookup) : null;
   }
 
@@ -2088,67 +1784,44 @@
 
   function projectionKindLabel(kind) {
     const labels = {
-      native_mni_surface_projection: "Native MNI/fsaverage coordinate",
-      csv_supplied_mni_surface_projection: "CSV-provided MNI coordinate",
-      csv_pair_registered_surface_estimate: "CSV-pair registered template-space estimate",
-      fiducial_registered_surface_estimate: "Fiducial-registered template-space estimate",
-      label_registered_surface_estimate: "Label-registered template-space estimate",
-      unavailable: "MNI/fsaverage coordinate unavailable"
+      native_mni_surface_projection: "Direct MNI/fsaverage surface projection",
+      csv_supplied_mni_surface_projection: "CSV-supplied MNI surface projection",
+      csv_pair_registered_surface_estimate: "CSV-pair registered template estimate",
+      fiducial_registered_surface_estimate: "Fiducial-registered template estimate",
+      label_registered_surface_estimate: "Label-registered template estimate",
+      unavailable: "MNI projection unavailable"
     };
-    return labels[kind] || "Template-space coordinate estimate";
+    return labels[kind] || "Template-MNI surface estimate";
   }
 
   function updateCoordinateStrip(data, preview = false) {
-    const sourceBlock = dom["selected-source-coordinate-block"];
-    const sourceTitle = dom["selected-source-coordinate-title"];
-    const secondaryBlock = dom["selected-mni-coordinate-block"];
-    const secondaryTitle = dom["selected-mni-coordinate-title"];
-    const headingNote = dom["selected-coordinate-help"];
     if (!Array.isArray(data)) {
-      dom["selected-coordinate-strip"].className = "selected-coordinate-strip single-coordinate";
+      dom["selected-coordinate-strip"].className = "selected-coordinate-strip";
       dom["selected-coordinate-label"].textContent = "No electrode selected";
       dom["selected-coordinate-frame"].textContent = "Coordinate frame not selected.";
       dom["selected-coordinate-value"].textContent = "x — · y — · z —";
       dom["selected-mni-coordinate-value"].textContent = "x — · y — · z —";
-      dom["selected-mni-coordinate-method"].textContent = "";
-      if (sourceTitle) sourceTitle.textContent = "Electrode coordinate";
-      if (secondaryBlock) secondaryBlock.hidden = true;
-      if (headingNote) headingNote.textContent = "Click an electrode to display its coordinate and coordinate frame.";
+      dom["selected-mni-coordinate-method"].textContent = "Projection method will be shown here.";
       return;
     }
     const [label, cap, x, y, z, , , , , , , coordinateFrame, sourceIsMni, , , , , , , , , ,
-      mniX, mniY, mniZ, projectionKind, projectionMethod, projectionBasis, , registrationResidual] = data;
+      mniX, mniY, mniZ, projectionKind, projectionMethod, projectionBasis, projectionDistance, registrationResidual] = data;
     const capLabel = cap === "comparison" ? "Comparison cap" : "Reference cap";
     const hasMni = [mniX, mniY, mniZ].every(Number.isFinite);
-    const nativeMni = sourceIsMni === true && projectionKind === "native_mni_surface_projection";
-    const showSecondary = hasMni && !nativeMni;
-    dom["selected-coordinate-strip"].className = `selected-coordinate-strip ${hasMni ? "mni" : "template"}${showSecondary ? "" : " single-coordinate"}`;
+    dom["selected-coordinate-strip"].className = `selected-coordinate-strip ${hasMni ? "mni" : "template"}`;
     dom["selected-coordinate-label"].textContent = `${label} · ${capLabel}${preview ? " · hover preview" : ""}`;
-    dom["selected-coordinate-frame"].textContent = `${coordinateFrame || "Coordinate frame not supplied"}${nativeMni ? " · used directly" : " · exact source values preserved"}`;
+    dom["selected-coordinate-frame"].textContent = `${coordinateFrame || "Coordinate frame not supplied"}${sourceIsMni ? " · MNI/fsaverage-compatible source" : " · exact source values preserved"}`;
     dom["selected-coordinate-value"].textContent = `x ${Number(x).toFixed(2)} · y ${Number(y).toFixed(2)} · z ${Number(z).toFixed(2)} mm`;
-    if (sourceTitle) sourceTitle.textContent = nativeMni ? "MNI/fsaverage electrode coordinate" : "Original / CSV coordinate";
-    if (secondaryBlock) secondaryBlock.hidden = !showSecondary;
-    if (headingNote) {
-      headingNote.textContent = nativeMni
-        ? "This electrode coordinate is already in MNI/fsaverage space, so no duplicate projected coordinate is shown."
-        : showSecondary
-          ? "The exact source coordinate and its separate MNI/fsaverage-compatible coordinate are shown below."
-          : "The exact source coordinate is shown; an MNI/fsaverage-compatible coordinate is unavailable.";
-    }
-    if (showSecondary) {
+    if (hasMni) {
       dom["selected-mni-coordinate-value"].textContent = `x ${Number(mniX).toFixed(2)} · y ${Number(mniY).toFixed(2)} · z ${Number(mniZ).toFixed(2)} mm`;
-      if (secondaryTitle) {
-        secondaryTitle.textContent = projectionKind === "csv_supplied_mni_surface_projection"
-          ? "CSV-provided MNI coordinate"
-          : "Estimated MNI/fsaverage coordinate";
-      }
-      const residual = Number.isFinite(registrationResidual)
+      const residual = Number.isFinite(registrationResidual) && projectionKind !== "native_mni_surface_projection"
         ? ` · registration RMS ${Number(registrationResidual).toFixed(2)} mm`
         : "";
-      dom["selected-mni-coordinate-method"].textContent = `${projectionKindLabel(projectionKind)}${projectionBasis ? ` · ${projectionBasis}` : ""}${residual}`;
+      const adjustment = Number.isFinite(projectionDistance) ? ` · surface adjustment ${Number(projectionDistance).toFixed(2)} mm` : "";
+      dom["selected-mni-coordinate-method"].textContent = `${projectionKindLabel(projectionKind)}${projectionBasis ? ` · ${projectionBasis}` : ""}${residual}${adjustment}`;
     } else {
-      dom["selected-mni-coordinate-value"].textContent = hasMni ? dom["selected-coordinate-value"].textContent : "Unavailable";
-      dom["selected-mni-coordinate-method"].textContent = hasMni ? "" : (projectionMethod || "Supply MNI coordinates, fiducials, or matching standard electrode labels.");
+      dom["selected-mni-coordinate-value"].textContent = "Unavailable";
+      dom["selected-mni-coordinate-method"].textContent = projectionMethod || "Supply MNI coordinates, fiducials, or matching standard electrode labels.";
     }
   }
 
@@ -2178,12 +1851,8 @@
     const differenceHtml = Number.isFinite(distance)
       ? `<dt>Source-coordinate cap difference</dt><dd><strong>${distance.toFixed(2)} mm</strong> (Δx ${dx.toFixed(2)}, Δy ${dy.toFixed(2)}, Δz ${dz.toFixed(2)} mm). ${sourceFrameNote}</dd>`
       : "";
-    const matchedComparison = state.comparisonRows.find((row) => labelKey(row.label) === labelKey(label));
-    const bothComparisonCoordinatesAreNativeMni = matchedComparison
-      && analysisMniKind(matchedComparison.reference) === "native"
-      && analysisMniKind(matchedComparison.comparison) === "native";
-    const mniDifferenceHtml = Number.isFinite(mniDistance) && !bothComparisonCoordinatesAreNativeMni
-      ? `<dt>MNI/fsaverage-coordinate cap difference</dt><dd><strong>${Number(mniDistance).toFixed(2)} mm</strong> (Δx ${Number(mniDx).toFixed(2)}, Δy ${Number(mniDy).toFixed(2)}, Δz ${Number(mniDz).toFixed(2)} mm).</dd>`
+    const mniDifferenceHtml = Number.isFinite(mniDistance)
+      ? `<dt>Template-MNI scalp difference</dt><dd><strong>${Number(mniDistance).toFixed(2)} mm</strong> (Δx ${Number(mniDx).toFixed(2)}, Δy ${Number(mniDy).toFixed(2)}, Δz ${Number(mniDz).toFixed(2)} mm). This compares the two template-scalp projection estimates.</dd>`
       : "";
     const hasMni = [mniX, mniY, mniZ].every(Number.isFinite);
     const detailedReferences = parseReferencePayload(referencePayload);
@@ -2195,17 +1864,12 @@
       fallbackReferences.push(MAPPING_REFERENCES[0]);
     }
     const links = uniqueReferenceLinks([...detailedReferences, ...fallbackReferences]);
-    const coordinateIsNativeMni = sourceIsMni === true && projectionKind === "native_mni_surface_projection";
-    const projectionDetails = coordinateIsNativeMni
-      ? ""
-      : hasMni
-        ? `<dt>MNI coordinate status</dt><dd>${escapeHtml(projectionKindLabel(projectionKind))}</dd>
-           <dt>Registration basis</dt><dd>${escapeHtml(projectionBasis || "template coordinate")}</dd>
-           ${Number.isFinite(registrationResidual) ? `<dt>Registration RMS residual</dt><dd>${Number(registrationResidual).toFixed(2)} mm</dd>` : ""}`
-        : `<dt>MNI/fsaverage coordinate</dt><dd>Unavailable from the supplied information.</dd>`;
-    const coordinateCaveat = coordinateIsNativeMni
-      ? "These are template-montage coordinates and are not participant-specific digitizations."
-      : (projectionWarning || "Template-space coordinates are estimates unless MNI values were supplied directly.");
+    const projectionDetails = hasMni
+      ? `<dt>MNI projection method</dt><dd>${escapeHtml(projectionMethod || projectionKindLabel(projectionKind))}</dd>
+         <dt>Registration basis</dt><dd>${escapeHtml(projectionBasis || "template coordinate")}</dd>
+         ${Number.isFinite(registrationResidual) ? `<dt>Registration RMS residual</dt><dd>${Number(registrationResidual).toFixed(2)} mm</dd>` : ""}
+         ${Number.isFinite(projectionDistance) ? `<dt>Scalp-surface adjustment</dt><dd>${Number(projectionDistance).toFixed(2)} mm</dd>` : ""}`
+      : `<dt>MNI projection</dt><dd>Unavailable from the supplied information.</dd>`;
     dom["selected-electrode-content"].className = "";
     dom["selected-electrode-content"].innerHTML = `
       <div class="electrode-name">${escapeHtml(label)}</div>
@@ -2222,7 +1886,7 @@
         ${mniDifferenceHtml}
       </dl>
       ${links ? `<div class="reference-section"><div class="reference-section-title">References used for this electrode</div><div class="reference-links">${links}</div></div>` : ""}
-      <p class="anatomy-caveat">${escapeHtml(coordinateCaveat)} Precise participant-level localization requires digitized electrodes, individual MRI coregistration, and anatomical normalization.</p>`;
+      <p class="anatomy-caveat">${escapeHtml(projectionWarning || "Template MNI values are visualization-oriented estimates unless the source was already registered to MNI/fsaverage.")} Precise participant-level localization requires digitized electrodes, individual MRI coregistration, and anatomical normalization.</p>`;
   }
 
   function updateComparisonSummary() {
@@ -2238,15 +1902,13 @@
     }
     const mean = rows.reduce((sum, row) => sum + row.distance, 0) / rows.length;
     const maximum = rows[0];
-    const showSeparateMniDistance = rows.some((row) => Number.isFinite(row.mniDistance)
-      && !(analysisMniKind(row.reference) === "native" && analysisMniKind(row.comparison) === "native"));
     dom["mean-distance"].textContent = `${mean.toFixed(2)} mm`;
     dom["max-distance"].textContent = `${maximum.distance.toFixed(2)} mm (${maximum.label})`;
     dom["comparison-table-wrap"].className = "table-wrap";
     dom["comparison-table-wrap"].innerHTML = `
       <table>
-        <thead><tr><th>Electrode</th><th>Source distance</th>${showSeparateMniDistance ? "<th>MNI-space distance</th>" : ""}<th>Δx</th><th>Δy</th><th>Δz</th></tr></thead>
-        <tbody>${rows.map((row) => `<tr data-electrode="${escapeHtml(row.label)}"><td>${escapeHtml(row.label)}</td><td>${row.distance.toFixed(2)}</td>${showSeparateMniDistance ? `<td>${Number.isFinite(row.mniDistance) ? row.mniDistance.toFixed(2) : "—"}</td>` : ""}<td>${row.dx.toFixed(2)}</td><td>${row.dy.toFixed(2)}</td><td>${row.dz.toFixed(2)}</td></tr>`).join("")}</tbody>
+        <thead><tr><th>Electrode</th><th>Source distance</th><th>Template-MNI distance</th><th>Δx</th><th>Δy</th><th>Δz</th></tr></thead>
+        <tbody>${rows.map((row) => `<tr data-electrode="${escapeHtml(row.label)}"><td>${escapeHtml(row.label)}</td><td>${row.distance.toFixed(2)}</td><td>${Number.isFinite(row.mniDistance) ? row.mniDistance.toFixed(2) : "—"}</td><td>${row.dx.toFixed(2)}</td><td>${row.dy.toFixed(2)}</td><td>${row.dz.toFixed(2)}</td></tr>`).join("")}</tbody>
       </table>`;
     dom["comparison-table-wrap"].querySelectorAll("tbody tr").forEach((rowElement) => {
       rowElement.addEventListener("click", () => {
@@ -2259,7 +1921,14 @@
 
   function updateHeadStatus() {
     dom["head-model-status"].textContent = state.fitStatus;
-    dom["head-model-status"].className = "model-status success";
+    dom["head-model-status"].className = `model-status ${state.displayGeometry?.warnings.length ? "warning" : "success"}`;
+    const selection = state.lastClicked || state.hoverPreview;
+    let message = "Head fitting and scalp projection affect the drawing only. Original/CSV and template-MNI coordinates below remain unchanged.";
+    if (selection) {
+      const d = state.displayGeometry?.positions[selection.cap]?.get(labelKey(selection.label));
+      if (d?.projected) message += ` Selected marker display adjustment: ${d.adjustment.toFixed(2)} mm.`;
+    }
+    dom["display-projection-note"].textContent = message;
   }
 
   function setFileStatus(type, message, isError = false) {
@@ -2275,10 +1944,13 @@
 
   async function loadCSVFile(file, type) {
     if (!file) return;
+    const generation = ++state.loadGeneration[type];
     try {
       const text = await readFileAsText(file);
+      if (generation !== state.loadGeneration[type]) return;
       const units = dom[`${type}-units`].value;
       const parsed = parseElectrodeCSV(text, units, type);
+      state.capContext[type] = { fiducials: parsed.fiducials };
       if (type === "reference") {
         state.reference = parsed.electrodes;
         state.referenceName = file.name.replace(/\.csv$/i, "") || "Reference cap";
@@ -2292,22 +1964,23 @@
       } else {
         state.comparison = parsed.electrodes;
         state.comparisonName = file.name.replace(/\.csv$/i, "") || "Comparison cap";
+        state.comparisonPresetId = "custom";
+        dom["comparison-montage-select"].value = "custom";
         state.hidden.comparison.clear();
         dom["comparison-status-pill"].textContent = "Loaded";
         dom["comparison-status-pill"].className = "status-pill comparison";
       }
       const duplicateText = parsed.duplicateCount ? ` ${parsed.duplicateCount} duplicate label(s) were skipped.` : "";
       const frameSummary = parsed.electrodes[0]?.coordinateFrame || "coordinate frame not supplied";
-      const mniCount = parsed.electrodes.filter(hasAnalysisMniCoordinate).length;
-      const projectionText = `${mniCount}/${parsed.electrodes.length} electrodes have an MNI/fsaverage-compatible coordinate`;
+      const projectionText = `${parsed.projectionSummary.available}/${parsed.electrodes.length} electrodes have a template MNI/fsaverage scalp coordinate`;
       setFileStatus(type, `${parsed.electrodes.length} electrodes loaded; units: ${parsed.detectedUnits}; source frame: ${frameSummary}; ${projectionText}.${duplicateText}`);
       state.lastClicked = null;
       state.hoverPreview = null;
+      resetFitForData(type);
       renderVisibilityList();
       scheduleRender(0);
-      scheduleDistanceMatrixRender(0);
     } catch (error) {
-      setFileStatus(type, error.message, true);
+      if (generation === state.loadGeneration[type]) setFileStatus(type, error.message, true);
     }
   }
 
@@ -2317,8 +1990,12 @@
   }
 
   function clearComparison() {
+    state.loadGeneration.comparison += 1;
     state.comparison = [];
     state.comparisonName = "Comparison cap";
+    state.comparisonPresetId = "";
+    state.capContext.comparison = {};
+    dom["comparison-montage-select"].value = "";
     state.hidden.comparison.clear();
     state.lastClicked = null;
     state.hoverPreview = null;
@@ -2327,9 +2004,9 @@
     dom["comparison-status-pill"].className = "status-pill muted";
     dom["comparison-file-status"].textContent = "No comparison cap loaded.";
     dom["comparison-file-status"].className = "file-status";
+    resetFitForData("comparison");
     renderVisibilityList();
     scheduleRender(0);
-    scheduleDistanceMatrixRender(0);
   }
 
   function rowsToCSV(rows) {
@@ -2351,521 +2028,28 @@
     URL.revokeObjectURL(url);
   }
 
-  function refreshDistanceCapSelector() {
-    const select = dom["distance-cap-select"];
-    const referenceOption = select.querySelector('option[value="reference"]');
-    const comparisonOption = select.querySelector('option[value="comparison"]');
-    referenceOption.textContent = `Reference — ${state.referenceName}`;
-    comparisonOption.textContent = `Comparison — ${state.comparisonName}`;
-    comparisonOption.disabled = state.comparison.length === 0;
-    if (comparisonOption.disabled && select.value === "comparison") select.value = "reference";
-  }
-
-  function computeMniDistanceMatrix(cap = "reference") {
-    const allElectrodes = capElectrodes(cap);
-    const selectedElectrodes = visibleElectrodes(cap);
-    const entries = selectedElectrodes
-      .map((electrode) => ({
-        id: electrodeVisibilityId(electrode),
-        label: electrode.label,
-        point: analysisMniCoordinate(electrode)
-      }))
-      .filter((entry) => entry.point);
-    const count = entries.length;
-    const values = Array.from({ length: count }, () => Array(count).fill(0));
-    let maximum = 0;
-
-    for (let row = 0; row < count; row += 1) {
-      for (let column = row + 1; column < count; column += 1) {
-        const a = entries[row].point;
-        const b = entries[column].point;
-        const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-        values[row][column] = distance;
-        values[column][row] = distance;
-        if (distance > maximum) maximum = distance;
-      }
-    }
-
-    return {
-      cap,
-      name: cap === "comparison" ? state.comparisonName : state.referenceName,
-      labels: entries.map((entry) => entry.label),
-      values,
-      maximum,
-      excluded: selectedElectrodes.length - entries.length,
-      visibleCount: selectedElectrodes.length,
-      hiddenCount: allElectrodes.length - selectedElectrodes.length,
-      allCount: allElectrodes.length,
-      membershipSignature: entries.map((entry) => entry.id).join("|")
-    };
-  }
-
-  function resetDistanceHover() {
-    dom["distance-hover-pair"].textContent = "— ↔ —";
-    dom["distance-hover-value"].textContent = "Point to a matrix cell";
-  }
-
-  function showDistancePair(pair) {
-    if (!pair) {
-      resetDistanceHover();
-      return;
-    }
-    dom["distance-hover-pair"].textContent = `${pair.electrodeA} ↔ ${pair.electrodeB}`;
-    dom["distance-hover-value"].textContent = `${pair.distance.toFixed(2)} mm`;
-  }
-
-  function distancePairFromIndices(row, column) {
-    const matrix = state.distanceMatrix;
-    if (!matrix || !Number.isInteger(row) || !Number.isInteger(column)) return null;
-    if (row < 0 || column < 0 || row >= matrix.labels.length || column >= matrix.labels.length) return null;
-    return {
-      row,
-      column,
-      electrodeA: matrix.labels[row],
-      electrodeB: matrix.labels[column],
-      distance: matrix.values[row][column]
-    };
-  }
-
-  function setDistancePairSelectors(pair) {
-    dom["distance-row-electrode-select"].value = pair ? String(pair.row) : "";
-    dom["distance-column-electrode-select"].value = pair ? String(pair.column) : "";
-  }
-
-  function clearPinnedDistancePair() {
-    state.distancePinnedPair = null;
-    setDistancePairSelectors(null);
-    dom["clear-distance-pair-button"].disabled = true;
-    resetDistanceHover();
-  }
-
-  function pinDistancePair(pair) {
-    if (!pair) {
-      clearPinnedDistancePair();
-      return;
-    }
-    state.distancePinnedPair = pair;
-    setDistancePairSelectors(pair);
-    dom["clear-distance-pair-button"].disabled = false;
-    showDistancePair(pair);
-  }
-
-  function pinDistancePairFromSelectors() {
-    const rowValue = dom["distance-row-electrode-select"].value;
-    const columnValue = dom["distance-column-electrode-select"].value;
-    if (rowValue === "" || columnValue === "") {
-      state.distancePinnedPair = null;
-      dom["clear-distance-pair-button"].disabled = true;
-      resetDistanceHover();
-      return;
-    }
-    pinDistancePair(distancePairFromIndices(Number(rowValue), Number(columnValue)));
-  }
-
-  function populateDistancePairSelectors(matrix) {
-    [dom["distance-row-electrode-select"], dom["distance-column-electrode-select"]].forEach((select, selectorIndex) => {
-      select.innerHTML = "";
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = selectorIndex === 0 ? "Choose row" : "Choose column";
-      select.appendChild(placeholder);
-      matrix.labels.forEach((label, index) => {
-        const option = document.createElement("option");
-        option.value = String(index);
-        option.textContent = label;
-        select.appendChild(option);
-      });
-      select.value = "";
-      select.disabled = matrix.labels.length === 0;
-    });
-    dom["clear-distance-pair-button"].disabled = true;
-  }
-
-  function distancePairFromEvent(event) {
-    const point = event?.points?.[0];
-    if (!point || !state.distanceMatrix) return null;
-    const column = Math.round(Number(point.x));
-    const row = Math.round(Number(point.y));
-    return distancePairFromIndices(row, column);
-  }
-
-  function bindDistancePlotEvents() {
-    dom["distance-plot"].on("plotly_hover", (event) => showDistancePair(distancePairFromEvent(event)));
-    dom["distance-plot"].on("plotly_unhover", () => showDistancePair(state.distancePinnedPair));
-    dom["distance-plot"].on("plotly_click", (event) => pinDistancePair(distancePairFromEvent(event)));
-  }
-
-  function distanceMatrixLayout(matrix) {
-    const count = matrix.labels.length;
-    const last = Math.max(0.5, count - 0.5);
-    const indices = matrix.labels.map((_, index) => index);
-    const longestLabel = Math.max(2, ...matrix.labels.map((label) => String(label).length));
-    const tickSize = count <= 20 ? 11 : count <= 40 ? 9 : count <= 80 ? 8 : 6;
-    const commonAxis = {
-      tickmode: "array",
-      tickvals: indices,
-      ticktext: matrix.labels,
-      showticklabels: true,
-      ticks: "outside",
-      ticklen: 4,
-      tickcolor: "#98a2b3",
-      tickfont: { color: "#344054", size: tickSize },
-      automargin: true,
-      showgrid: false,
-      zeroline: false,
-      showline: true,
-      linecolor: "#98a2b3",
-      fixedrange: false,
-      constrain: "domain",
-      showspikes: true,
-      spikesnap: "cursor",
-      spikemode: "across",
-      spikedash: "solid",
-      spikecolor: "#172033",
-      spikethickness: 2
-    };
-    return {
-      autosize: true,
-      title: {
-        text: `${escapeHtml(matrix.name)} · pairwise MNI distances`,
-        x: 0.5,
-        xanchor: "center",
-        font: { size: 15, color: "#172033" }
-      },
-      margin: {
-        l: clamp(52 + longestLabel * 5, 72, 130),
-        r: 96,
-        t: 58,
-        b: clamp(62 + longestLabel * 5, 92, 150)
-      },
-      paper_bgcolor: "#fbfcfd",
-      plot_bgcolor: "#fbfcfd",
-      hovermode: "closest",
-      hoverdistance: -1,
-      spikedistance: -1,
-      uirevision: `distance-matrix-${matrix.cap}-${matrix.membershipSignature}`,
-      annotations: [{
-        x: 0.5,
-        y: -0.1,
-        xref: "paper",
-        yref: "paper",
-        xanchor: "center",
-        yanchor: "top",
-        showarrow: false,
-        text: "Euclidean straight-line distances · MNI/fsaverage space · axes and CSV include electrode labels",
-        font: { size: 10, color: "#667085" }
-      }],
-      xaxis: {
-        ...commonAxis,
-        range: [-0.5, last],
-        tickangle: count <= 12 ? -45 : -90
-      },
-      yaxis: {
-        ...commonAxis,
-        range: [last, -0.5],
-        scaleanchor: "x",
-        scaleratio: 1
-      }
-    };
-  }
-
-  const DISTANCE_PLOT_CONFIG = {
-    responsive: true,
-    displaylogo: false,
-    scrollZoom: true,
-    modeBarButtonsToRemove: ["sendDataToCloud", "toImage", "select2d", "lasso2d"]
-  };
-
-  function markDistanceMatrixPending() {
-    refreshDistanceCapSelector();
-    state.distanceNeedsRender = true;
-    state.distanceReadyRevision = 0;
-    dom["distance-row-electrode-select"].disabled = true;
-    dom["distance-column-electrode-select"].disabled = true;
-    clearPinnedDistancePair();
-    dom["download-distance-csv-button"].disabled = true;
-    dom["download-distance-png-button"].disabled = true;
-    dom["distance-plot"].setAttribute("aria-busy", "true");
-    dom["distance-matrix-status"].textContent = "Preparing the distance matrix…";
-  }
-
-  function handleDistanceMatrixError(error, revision) {
-    if (revision !== state.distanceRenderRevision) return;
-    console.error(error);
-    state.distanceMatrix = null;
-    state.distanceReadyRevision = 0;
-    state.distanceStatusText = `Distance matrix error: ${error.message}`;
-    dom["distance-matrix-status"].textContent = state.distanceStatusText;
-    dom["distance-plot"].setAttribute("aria-busy", "false");
-    dom["download-distance-csv-button"].disabled = true;
-    dom["download-distance-png-button"].disabled = true;
-  }
-
-  async function performDistanceMatrixRender(revision) {
-    if (revision !== state.distanceRenderRevision) return;
-    const cap = dom["distance-cap-select"].value === "comparison" ? "comparison" : "reference";
-    const matrix = computeMniDistanceMatrix(cap);
-    const hasData = matrix.labels.length > 0;
-
-    if (!hasData) {
-      await Plotly.react(dom["distance-plot"], [], {
-        autosize: true,
-        margin: { l: 0, r: 0, t: 0, b: 0 },
-        paper_bgcolor: "#fbfcfd",
-        plot_bgcolor: "#fbfcfd",
-        xaxis: { visible: false },
-        yaxis: { visible: false }
-      }, DISTANCE_PLOT_CONFIG);
-    } else {
-      const indices = matrix.labels.map((_, index) => index);
-      const trace = {
-        type: "heatmap",
-        x: indices,
-        y: indices,
-        z: matrix.values,
-        zmin: 0,
-        zmax: Math.max(matrix.maximum, 1),
-        colorscale: "Viridis",
-        zsmooth: false,
-        hoverinfo: "none",
-        colorbar: {
-          title: { text: "Distance<br>(mm)", side: "right" },
-          thickness: 16,
-          len: 0.84,
-          outlinewidth: 0
-        }
-      };
-      await Plotly.react(dom["distance-plot"], [trace], distanceMatrixLayout(matrix), DISTANCE_PLOT_CONFIG);
-    }
-
-    if (revision !== state.distanceRenderRevision) return;
-    state.distanceMatrix = matrix;
-    state.distanceNeedsRender = false;
-    state.distanceReadyRevision = revision;
-    populateDistancePairSelectors(matrix);
-    clearPinnedDistancePair();
-    dom["distance-plot-empty"].hidden = hasData;
-    if (!hasData) {
-      dom["distance-plot-empty"].textContent = matrix.visibleCount === 0 && matrix.allCount > 0
-        ? "No electrodes are selected for display. Choose electrodes under Electrode visibility."
-        : matrix.allCount > 0
-          ? "The visible electrodes do not have MNI/fsaverage-compatible coordinates."
-          : "This cap contains no electrodes.";
-    }
-    dom["distance-plot"].setAttribute("aria-busy", "false");
-    dom["distance-plot"].setAttribute(
-      "aria-label",
-      hasData
-        ? `${matrix.labels.length} by ${matrix.labels.length} pairwise electrode distance matrix for ${matrix.name}`
-        : `No visible MNI coordinates available for ${matrix.name}`
-    );
-    dom["download-distance-csv-button"].disabled = !hasData;
-    dom["download-distance-png-button"].disabled = !hasData;
-    if (hasData) {
-      const includedText = matrix.excluded
-        ? `${matrix.excluded} additional visible electrode${matrix.excluded === 1 ? "" : "s"} without an MNI/fsaverage coordinate ${matrix.excluded === 1 ? "was" : "were"} excluded.`
-        : "Every visible electrode has an MNI/fsaverage coordinate.";
-      state.distanceStatusText = `${matrix.labels.length} × ${matrix.labels.length} matrix using ${matrix.visibleCount} visible of ${matrix.allCount} electrodes. ${includedText} Straight-line Euclidean distances in millimeters.`;
-    } else {
-      state.distanceStatusText = matrix.allCount === 0
-        ? "This cap contains no electrodes."
-        : matrix.visibleCount === 0
-          ? `0 of ${matrix.allCount} electrodes are visible. Select electrodes under Electrode visibility to build the matrix.`
-          : `None of the ${matrix.visibleCount} visible electrodes has an available MNI/fsaverage coordinate.`;
-    }
-    dom["distance-matrix-status"].textContent = state.distanceStatusText;
-    if (!state.distancePlotInitialized) {
-      bindDistancePlotEvents();
-      state.distancePlotInitialized = true;
-    }
-  }
-
-  function queueDistanceMatrixRender(revision) {
-    const task = state.distanceRenderQueue
-      .catch(() => undefined)
-      .then(() => performDistanceMatrixRender(revision));
-    state.distanceRenderQueue = task.catch((error) => handleDistanceMatrixError(error, revision));
-    return state.distanceRenderQueue;
-  }
-
-  function renderDistanceMatrix() {
-    clearTimeout(state.distanceRenderTimer);
-    state.distanceRenderTimer = null;
-    const revision = ++state.distanceRenderRevision;
-    state.distanceNeedsRender = true;
-    if (!state.distanceDialogOpen) {
-      refreshDistanceCapSelector();
-      state.distanceMatrix = null;
-      state.distancePinnedPair = null;
-      populateDistancePairSelectors({ labels: [] });
-      clearPinnedDistancePair();
-      state.distanceReadyRevision = 0;
-      dom["download-distance-csv-button"].disabled = true;
-      dom["download-distance-png-button"].disabled = true;
-      dom["distance-plot"].setAttribute("aria-busy", "false");
-      dom["distance-matrix-status"].textContent = "The matrix will be prepared when this window opens.";
-      return Promise.resolve();
-    }
-    markDistanceMatrixPending();
-    return queueDistanceMatrixRender(revision);
-  }
-
-  function scheduleDistanceMatrixRender(delay = 35) {
-    clearTimeout(state.distanceRenderTimer);
-    const revision = ++state.distanceRenderRevision;
-    state.distanceNeedsRender = true;
-    if (!state.distanceDialogOpen) {
-      state.distanceRenderTimer = null;
-      refreshDistanceCapSelector();
-      state.distanceMatrix = null;
-      state.distancePinnedPair = null;
-      populateDistancePairSelectors({ labels: [] });
-      clearPinnedDistancePair();
-      state.distanceReadyRevision = 0;
-      dom["download-distance-csv-button"].disabled = true;
-      dom["download-distance-png-button"].disabled = true;
-      dom["distance-plot"].setAttribute("aria-busy", "false");
-      dom["distance-matrix-status"].textContent = "The matrix will update when this window opens.";
-      return;
-    }
-    markDistanceMatrixPending();
-    state.distanceRenderTimer = setTimeout(() => {
-      state.distanceRenderTimer = null;
-      queueDistanceMatrixRender(revision);
-    }, delay);
-  }
-
-  async function openDistanceDialog() {
-    const dialog = dom["distance-dialog"];
-    if (!dialog) return;
-    try {
-      if (!dialog.open) {
-        if (typeof dialog.showModal === "function") dialog.showModal();
-        else dialog.setAttribute("open", "");
-      }
-    } catch (error) {
-      console.error("Distance matrix dialog could not be opened", error);
-      return;
-    }
-    state.distanceDialogOpen = true;
-    document.body.classList.add("distance-dialog-open");
-    dom["open-distance-dialog-button"].setAttribute("aria-expanded", "true");
-    dom["close-distance-dialog-button"].focus({ preventScroll: true });
-    if (state.distanceNeedsRender || !state.distancePlotInitialized) {
-      await renderDistanceMatrix();
-    }
-    requestAnimationFrame(() => {
-      if (state.distanceDialogOpen && state.distancePlotInitialized) Plotly.Plots.resize(dom["distance-plot"]);
-    });
-  }
-
-  function finishDistanceDialogClose() {
-    if (!state.distanceDialogOpen) {
-      document.body.classList.remove("distance-dialog-open");
-      dom["open-distance-dialog-button"].setAttribute("aria-expanded", "false");
-      return;
-    }
-    const renderWasPending = state.distanceNeedsRender
-      || dom["distance-plot"].getAttribute("aria-busy") === "true";
-    state.distanceDialogOpen = false;
-    document.body.classList.remove("distance-dialog-open");
-    dom["open-distance-dialog-button"].setAttribute("aria-expanded", "false");
-    clearTimeout(state.distanceRenderTimer);
-    state.distanceRenderTimer = null;
-    if (renderWasPending) {
-      state.distanceRenderRevision += 1;
-      state.distanceReadyRevision = 0;
-      state.distanceNeedsRender = true;
-      dom["distance-row-electrode-select"].disabled = true;
-      dom["distance-column-electrode-select"].disabled = true;
-      dom["clear-distance-pair-button"].disabled = true;
-      dom["download-distance-csv-button"].disabled = true;
-      dom["download-distance-png-button"].disabled = true;
-      dom["distance-plot"].setAttribute("aria-busy", "false");
-      dom["distance-matrix-status"].textContent = "Reopen this window to prepare the current matrix.";
-    }
-  }
-
-  function closeDistanceDialog() {
-    const dialog = dom["distance-dialog"];
-    if (!dialog) return;
-    finishDistanceDialogClose();
-    if (dialog.open && typeof dialog.close === "function") dialog.close();
-    else dialog.removeAttribute("open");
-    dom["open-distance-dialog-button"]?.focus?.({ preventScroll: true });
-  }
-
-  function downloadDistanceMatrixCSV() {
-    const matrix = state.distanceMatrix;
-    if (!matrix?.labels.length || state.distanceReadyRevision !== state.distanceRenderRevision) return;
-    const rows = [["Electrode", ...matrix.labels]];
-    matrix.labels.forEach((label, row) => {
-      rows.push([label, ...matrix.values[row].map((distance) => distance.toFixed(3))]);
-    });
-    downloadText(
-      `${exportBaseName(matrix.cap)}_mni_pairwise_distances_mm.csv`,
-      `\uFEFF${rowsToCSV(rows)}\r\n`
-    );
-  }
-
-  async function downloadDistanceMatrixPNG() {
-    const matrix = state.distanceMatrix;
-    const exportRevision = state.distanceReadyRevision;
-    if (!matrix?.labels.length || exportRevision !== state.distanceRenderRevision) return;
-    const button = dom["download-distance-png-button"];
-    const originalText = button.textContent;
-    button.disabled = true;
-    button.textContent = "Preparing PNG…";
-    dom["distance-matrix-status"].textContent = "Capturing the current matrix view and zoom…";
-    try {
-      await state.distanceRenderQueue;
-      if (exportRevision !== state.distanceReadyRevision || exportRevision !== state.distanceRenderRevision) return;
-      const minimumLongSide = Math.min(1800, Math.max(900, matrix.labels.length * 18 + 220));
-      const size = plotImageSize(dom["distance-plot"], minimumLongSide);
-      await Plotly.downloadImage(dom["distance-plot"], {
-        format: "png",
-        filename: `${exportBaseName(matrix.cap)}_mni_pairwise_distances`,
-        width: size.width,
-        height: size.height,
-        scale: 2
-      });
-      if (exportRevision === state.distanceReadyRevision && exportRevision === state.distanceRenderRevision) {
-        dom["distance-matrix-status"].textContent = `Saved the current matrix view and zoom as PNG. ${state.distanceStatusText}`;
-      }
-    } catch (error) {
-      console.error(error);
-      if (exportRevision === state.distanceReadyRevision && exportRevision === state.distanceRenderRevision) {
-        dom["distance-matrix-status"].textContent = `Distance matrix PNG export failed: ${error.message}. ${state.distanceStatusText}`;
-      }
-    } finally {
-      button.disabled = !(state.distanceMatrix?.labels.length
-        && state.distanceReadyRevision === state.distanceRenderRevision);
-      button.textContent = originalText;
-    }
-  }
-
   function downloadDefaultCSV() {
     const frame = state.reference[0]?.coordinateFrame || "coordinate frame not supplied";
     const rows = [[
       "label", "x", "y", "z", "coordinate_frame",
-      "mni_x", "mni_y", "mni_z", "mni_coordinate_origin", "mni_registration_method",
-      "mni_registration_basis", "mni_registration_rms_residual_mm", "rendering_surface_snap_distance_mm",
+      "mni_x", "mni_y", "mni_z", "mni_projection_kind", "mni_projection_method",
+      "mni_projection_basis", "mni_registration_rms_residual_mm", "mni_surface_adjustment_mm",
       "region", "function", "region_url"
     ]];
     state.reference.forEach((electrode) => {
-      const mni = analysisMniCoordinate(electrode);
+      const mni = mniCoordinate(electrode);
       const info = inferElectrodeInfo(electrode);
       rows.push([
         electrode.label, electrode.x, electrode.y, electrode.z, electrode.coordinateFrame || frame,
         mni ? mni.x : "", mni ? mni.y : "", mni ? mni.z : "",
-        analysisMniKind(electrode), analysisMniMethod(electrode),
+        electrode.mniProjectionKind || "unavailable", electrode.mniProjectionMethod || "",
         electrode.mniProjectionBasis || "", finiteNumberOrNull(electrode.mniRegistrationResidualMm) ?? "",
         finiteNumberOrNull(electrode.mniProjectionDistanceMm) ?? "",
         electrode.region || info.region, electrode.functionText || info.functions, electrode.regionUrl || info.sourceUrl
       ]);
     });
     const base = (state.referencePresetId && state.referencePresetId !== "custom" ? state.referencePresetId : state.referenceName || "eeg_reference").replace(/[^a-zA-Z0-9_-]+/g, "_");
-    downloadText(`${base}_source_and_mni_coordinates.csv`, rowsToCSV(rows));
+    downloadText(`${base}_source_and_template_mni_coordinates.csv`, rowsToCSV(rows));
   }
 
 
@@ -2876,14 +2060,14 @@
       "reference_source_x", "reference_source_y", "reference_source_z", "reference_source_frame",
       "comparison_source_x", "comparison_source_y", "comparison_source_z", "comparison_source_frame",
       "source_dx", "source_dy", "source_dz", "source_distance_mm", "source_frames_equivalent",
-      "reference_mni_x", "reference_mni_y", "reference_mni_z",
-      "comparison_mni_x", "comparison_mni_y", "comparison_mni_z",
-      "mni_dx", "mni_dy", "mni_dz", "mni_distance_mm",
-      "reference_mni_coordinate_origin", "comparison_mni_coordinate_origin"
+      "reference_template_mni_x", "reference_template_mni_y", "reference_template_mni_z",
+      "comparison_template_mni_x", "comparison_template_mni_y", "comparison_template_mni_z",
+      "template_mni_dx", "template_mni_dy", "template_mni_dz", "template_mni_distance_mm",
+      "reference_mni_projection_method", "comparison_mni_projection_method"
     ]];
     state.comparisonRows.forEach((row) => {
-      const referenceMni = analysisMniCoordinate(row.reference);
-      const comparisonMni = analysisMniCoordinate(row.comparison);
+      const referenceMni = mniCoordinate(row.reference);
+      const comparisonMni = mniCoordinate(row.comparison);
       rows.push([
         row.label,
         row.reference.x.toFixed(5), row.reference.y.toFixed(5), row.reference.z.toFixed(5), row.reference.coordinateFrame || "",
@@ -2892,14 +2076,14 @@
         referenceMni ? referenceMni.x.toFixed(5) : "", referenceMni ? referenceMni.y.toFixed(5) : "", referenceMni ? referenceMni.z.toFixed(5) : "",
         comparisonMni ? comparisonMni.x.toFixed(5) : "", comparisonMni ? comparisonMni.y.toFixed(5) : "", comparisonMni ? comparisonMni.z.toFixed(5) : "",
         Number.isFinite(row.mniDx) ? row.mniDx.toFixed(5) : "", Number.isFinite(row.mniDy) ? row.mniDy.toFixed(5) : "", Number.isFinite(row.mniDz) ? row.mniDz.toFixed(5) : "", Number.isFinite(row.mniDistance) ? row.mniDistance.toFixed(5) : "",
-        analysisMniKind(row.reference), analysisMniKind(row.comparison)
+        row.reference.mniProjectionMethod || "", row.comparison.mniProjectionMethod || ""
       ]);
     });
-    downloadText("eeg_cap_source_and_mni_comparison.csv", rowsToCSV(rows));
+    downloadText("eeg_cap_source_and_template_mni_comparison.csv", rowsToCSV(rows));
   }
 
   function updateRangeOutputs() {
-    dom["warp-strength-output"].textContent = `${Math.round(Number(dom["warp-strength-range"].value) * 100)}%`;
+
     dom["clearance-output"].textContent = `${Number(dom["clearance-range"].value).toFixed(1)} mm`;
     dom["head-scale-output"].textContent = Number(dom["head-scale-range"].value).toFixed(2);
     dom["head-opacity-output"].textContent = Number(dom["head-opacity-range"].value).toFixed(2);
@@ -2916,7 +2100,10 @@
     dom["head-model-select"].value = values.headModel;
     dom["auto-fit-checkbox"].checked = values.autoFit;
     dom["fit-source-select"].value = values.fitSource;
-    dom["warp-strength-range"].value = values.warpStrength;
+    dom["project-electrodes-checkbox"].checked = values.projectElectrodes;
+    dom["comparison-layout-select"].value = values.comparisonLayout;
+    dom["comparison-alignment-select"].value = values.comparisonAlignment;
+    dom["sync-cameras-checkbox"].checked = values.syncCameras;
     dom["clearance-range"].value = values.clearance;
     dom["head-scale-range"].value = values.headScale;
     dom["head-opacity-range"].value = values.headOpacity;
@@ -2942,9 +2129,9 @@
   function resetAll() {
     setControlValues(DEFAULT_CONTROL_VALUES);
     state.currentView = "default";
-    state.currentCamera = copyCamera(CAMERA_VIEWS.default);
+    state.camera = null; state.comparisonCamera = null;
     setVisibilityEditMode(false);
-    setActiveViewButton("default");
+    document.querySelectorAll(".view-button").forEach((button) => button.classList.toggle("active", button.dataset.view === "default"));
     loadMontagePreset(DEFAULT_MONTAGE_ID);
     clearComparison();
     state.lastClicked = null;
@@ -2952,6 +2139,14 @@
   }
 
   function bindControls() {
+    dom["comparison-montage-select"].addEventListener("change", event => {
+      if (MONTAGES[event.target.value]) loadComparisonPreset(event.target.value);
+      else if (!event.target.value) clearComparison();
+    });
+    dom["refit-head-button"].addEventListener("click", () => {
+      resetFitForData("reference");
+      scheduleRender(0);
+    });
     dom["montage-select"].addEventListener("change", (event) => {
       if (MONTAGES[event.target.value]) loadMontagePreset(event.target.value);
     });
@@ -2961,21 +2156,7 @@
     dom["clear-comparison-button"].addEventListener("click", clearComparison);
     dom["download-default-button"].addEventListener("click", downloadDefaultCSV);
     dom["download-comparison-button"].addEventListener("click", downloadComparisonCSV);
-    dom["open-distance-dialog-button"].addEventListener("click", openDistanceDialog);
-    dom["close-distance-dialog-button"].addEventListener("click", closeDistanceDialog);
-    dom["distance-dialog"].addEventListener("cancel", () => finishDistanceDialogClose());
-    dom["distance-dialog"].addEventListener("close", () => finishDistanceDialogClose());
-    dom["distance-dialog"].addEventListener("click", (event) => {
-      if (event.target === dom["distance-dialog"]) closeDistanceDialog();
-    });
-    dom["distance-cap-select"].addEventListener("change", () => scheduleDistanceMatrixRender(0));
-    dom["distance-row-electrode-select"].addEventListener("change", pinDistancePairFromSelectors);
-    dom["distance-column-electrode-select"].addEventListener("change", pinDistancePairFromSelectors);
-    dom["clear-distance-pair-button"].addEventListener("click", clearPinnedDistancePair);
-    dom["download-distance-csv-button"].addEventListener("click", downloadDistanceMatrixCSV);
-    dom["download-distance-png-button"].addEventListener("click", downloadDistanceMatrixPNG);
     dom["reset-all-button"].addEventListener("click", resetAll);
-    dom["export-view-button"].addEventListener("click", downloadCurrentViewPNG);
     dom["fullscreen-button"].addEventListener("click", async () => {
       try {
         if (!document.fullscreenElement) await dom["app-shell"].requestFullscreen();
@@ -2995,7 +2176,7 @@
     dom["visibility-invert-button"].addEventListener("click", () => applyVisibilityAction("invert"));
 
     const rerenderIds = [
-      "head-model-select", "auto-fit-checkbox", "fit-source-select", "warp-strength-range", "clearance-range",
+      "head-model-select", "auto-fit-checkbox", "fit-source-select", "project-electrodes-checkbox", "comparison-layout-select", "comparison-alignment-select", "sync-cameras-checkbox", "clearance-range",
       "head-scale-range", "head-opacity-range", "head-color-input", "head-contours-checkbox",
       "reference-color-input", "reference-size-range", "reference-opacity-range", "comparison-color-input",
       "comparison-size-range", "comparison-opacity-range", "show-labels-checkbox", "label-color-input",
@@ -3005,19 +2186,24 @@
     rerenderIds.forEach((id) => {
       const eventName = dom[id].type === "range" || dom[id].type === "color" ? "input" : "change";
       dom[id].addEventListener(eventName, () => {
+        syncHeadControls();
         updateRangeOutputs();
         scheduleRender();
       });
     });
 
     document.querySelectorAll(".view-button").forEach((button) => {
-      button.addEventListener("click", () => applyCameraPreset(button.dataset.view));
+      button.addEventListener("click", () => {
+        state.currentView = button.dataset.view;
+        document.querySelectorAll(".view-button").forEach((other) => other.classList.toggle("active", other === button));
+        state.camera = CAMERA_VIEWS[state.currentView]; state.comparisonCamera = state.camera;
+        const cameras = { "scene.camera": state.camera };
+        if (state.displayGeometry?.split) cameras["scene2.camera"] = state.camera;
+        Plotly.relayout(dom["eeg-plot"], cameras);
+      });
     });
 
-    window.addEventListener("resize", () => {
-      Plotly.Plots.resize(dom["eeg-plot"]);
-      if (state.distanceDialogOpen && state.distancePlotInitialized) Plotly.Plots.resize(dom["distance-plot"]);
-    });
+    window.addEventListener("resize", () => { Plotly.Plots.resize(dom["eeg-plot"]); scheduleRender(100); });
   }
 
   function applyConfiguration() {
@@ -3026,7 +2212,7 @@
       dom["app-title"].textContent = CONFIG.title;
     }
     if (CONFIG.subtitle) dom["app-subtitle"].textContent = CONFIG.subtitle;
-    dom["version-badge"].textContent = CONFIG.version || "1.2.2";
+    dom["version-badge"].textContent = CONFIG.version || "1.2.0";
     const query = new URLSearchParams(window.location.search);
     if (query.get("embed") === "1") document.body.classList.add("embed");
   }
@@ -3036,6 +2222,7 @@
     if (!Object.keys(MONTAGES).length) throw new Error("Built-in montage presets did not load.");
     if (!DEFAULT_COORDS.length) throw new Error("Default electrode coordinates did not load.");
     if (!TEMPLATE_MESH) throw new Error("Template scalp mesh did not load.");
+    if (!FITTING) throw new Error("Head-fitting module did not load. Upload js/head-fitting.js with this release.");
   }
 
   async function initialize() {
@@ -3050,9 +2237,8 @@
     setFileStatus("reference", `${state.reference.length} built-in electrodes loaded. Source frame: ${DEFAULT_PRESET?.coordinateFrame || "template coordinates"}. ${projectionAvailabilityText(state.reference)}`);
     bindControls();
     setVisibilityEditMode(false);
+    syncHeadControls();
     renderVisibilityList();
-    refreshDistanceCapSelector();
-    updateOrientationIndicator(state.currentCamera);
     await render();
     window.EEGViewerDebug = {
       getState: () => ({
@@ -3061,40 +2247,34 @@
         visibleReferenceCount: visibleElectrodes("reference").length,
         visibleComparisonCount: visibleElectrodes("comparison").length,
         presetId: state.referencePresetId,
-        currentView: state.currentView,
-        currentCamera: copyCamera(state.currentCamera),
-        hiddenReferenceIds: Array.from(state.hidden.reference),
-        hiddenComparisonIds: Array.from(state.hidden.comparison),
-        distanceDialogOpen: state.distanceDialogOpen,
-        distanceNeedsRender: state.distanceNeedsRender,
-        distanceMatrixSize: state.distanceMatrix?.labels.length || 0,
-        distanceRenderRevision: state.distanceRenderRevision,
-        distanceReadyRevision: state.distanceReadyRevision,
-        metadataVersion: METADATA_VERSION
+        comparisonPresetId: state.comparisonPresetId,
+        headReference: dom["fit-source-select"].value,
+        layout: dom["comparison-layout-select"].value,
+        dataRevision: state.dataRevision,
+        fitStatus: state.fitStatus
       }),
       selectElectrode: (label, cap = "reference") => {
         state.lastClicked = { label, cap };
         updateSelectedCard();
         scheduleRender(0);
       },
+      loadMontagePreset,
+      loadComparisonPreset,
+      loadCSVFile,
+      getDisplayGeometry: () => state.displayGeometry,
+      getElectrodes: cap => capElectrodes(cap),
+      getComparisonRows: () => state.comparisonRows,
+      getControlValues,
+      render,
+      buildPlotData,
       parseElectrodeCSV,
       computeComparison,
-      computeMniDistanceMatrix,
-      openDistanceDialog,
-      closeDistanceDialog,
-      electrodeSelectionFromPlotEvent,
-      cameraOrientationLabel,
-      labelKey,
-      electrodeVisibilityId,
-      analysisMniCoordinate,
-      analysisMniKind,
       mniCoordinate,
       projectionAvailabilityText
     };
     window.dispatchEvent(new CustomEvent("eegviewer:ready", {
       detail: {
         version: CONFIG.version || "unknown",
-        metadataVersion: METADATA_VERSION,
         referenceElectrodes: state.reference.length,
         montage: state.referencePresetId
       }
