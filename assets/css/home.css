@@ -35,6 +35,7 @@ body[data-page="home"] .home-hero {
 .home-hero-copy .profile-link-row { margin-top: 28px; }
 
 .home-portrait.profile-portrait {
+  grid-area: auto;
   width: 100%;
   max-width: 425px;
   aspect-ratio: 4 / 4.65;
