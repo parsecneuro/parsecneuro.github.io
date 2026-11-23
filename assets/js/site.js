@@ -352,6 +352,7 @@
       "profile-role": profile.currentRole,
       "profile-introduction": profile.introduction,
       "profile-location": profile.location,
+      "current-focus-copy": focus.text,
       "current-focus-label": focus.label,
       "current-focus-title": focus.title
     };
